@@ -7,7 +7,7 @@ Sucess:
 Work in Progress/Future Work:
 - Beep when locked and moved, and GPS module, boost converter for 6V headlight led, speed/battery monitor
 
-How the Xiaomi M365 Operates:
+# How the Xiaomi M365 Operates:
 - The scooter is composed of 3 microcontrollers: the Bluetooth (BLE) controller, the motor controller, and the battery management system (BMS) controller.
   - The BLE Controller:
     - Can send single commands to the motor controller (tail light on/off, cruise control on/off, lock/unlock),
@@ -23,7 +23,7 @@ How the Xiaomi M365 Operates:
   - The BMS Controller:
     - monitors battery levels and keeps batteries in health condition,
     - sends values (upon request) to BLE including overall & individual cell battery levels, temperatures, etc.
-Communication Protocol:
+# Communication Protocol:
 - The scooter's controllers communicate to each other using HEX protocols. For example, a single command looks like this:
   - | 0x55 | 0xAA | L | D | T | C | ... | Ck0 | Ck1 |
   - 0x55 and 0xAA are fixed headers that signal a command is being transmitted.
