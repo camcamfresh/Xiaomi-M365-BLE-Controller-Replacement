@@ -1,5 +1,9 @@
 # Basic Information
 The goal of this project is to simulate/imitate data received by the BLE Controller on the Xiaomi M365 Scooter with a microcontroller with cellular capabilities (Particle Electron).
+Sucess:
+- Can unlock, lock, turn lights on/off (except head light led), cruise control on/off, run the motor, stop motor with brake.
+Work in Progress/Future Work:
+- Beep when locked and moved, and GPS module, boost converter for 6V headlight led, speed/battery monitor
 
 How the Xiaomi M365 Operates:
 - The scooter is composed of 3 microcontrollers: the Bluetooth (BLE) controller, the motor controller, and the battery management system (BMS) controller.
