@@ -1,13 +1,13 @@
 # Basic Information
-The goal of this project is to imitate data received by the BLE Controller on the Xiaomi M365 Scooter with a microcontroller with cellular capabilities (Particle Electron).
+The goal of this project is to simulate/imitate data received by the BLE Controller on the Xiaomi M365 Scooter with a microcontroller with cellular capabilities (Particle Electron).
 
 How the Xiaomi M365 Operates:
-- The scooter is composed of 3 microcontrollers: the bluetooth (BLE) controller, the motor controller, and the battery management system (BMS) controller.
+- The scooter is composed of 3 microcontrollers: the Bluetooth (BLE) controller, the motor controller, and the battery management system (BMS) controller.
   - The BLE Controller:
     - Can send single commands to the motor controller (tail light on/off, cruise control on/off, lock/unlock),
-    - Continously sends values of the brake and throttle levers,
+    - Continuously sends values of the brake and throttle levers,
     - Turns the power to the scooter on by touching ground and 40V hot to each other for less than a second,
-    - Is connected to motor controller by four wires (groud [black], data [yellow], and two hot lines: 5V [red] & 40V [green]), and
+    - Is connected to motor controller by four wires (ground [black], data [yellow], and two hot lines: 5V [red] & 40V [green]), and
     - communicates via a one wire serial connection (half-duplex) at 115200bps, 8 data bits, no parity bit, one stop bit (8n1).
   - The Motor Controller:
     - solely operates the brushless D.C. (BLDC) motor,
@@ -26,7 +26,7 @@ Communication Protocol:
   - T is the message type: 0x01 = Read, and 0x03 = Write.
   - C is the command type (e.g. lock, unlock, etc.).
   - ... varies in size, but the first byte is usually on or off.
-  - Ck0 and Ck1 are the checksum values to confirm the integrety of the message: to calculate this value we add all of the previous bytes together except 0x55, 0xAA, and L. We then take this sum and preform an XOR operation (%) with the sum and 0xFFFF. The result of this calculation contains Ck1 and Ck0, respectively. In order to reverse the order, I convert the result into a string and use substring. The resulting Ck0 and Ck1 strings are then converted back to HEX.
+  - Ck0 and Ck1 are the checksum values to confirm the integrity of the message: to calculate this value we add all of the previous bytes together except 0x55, 0xAA, and L. We then take this sum and preform an XOR operation (%) with the sum and 0xFFFF. The result of this calculation contains Ck1 and Ck0, respectively. To reverse the order, I convert the result into a string and use substring. The resulting Ck0 and Ck1 strings are then converted back to HEX.
   - Source of Communication Protocol Information: https://github.com/CamiAlfa/M365-BLE-PROTOCOL/blob/master/protocolo
   
 
