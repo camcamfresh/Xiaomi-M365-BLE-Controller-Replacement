@@ -97,7 +97,7 @@ int cloudCommand(String com){
     }
     else if(com == "power"){
         digitalWrite(D1, HIGH);
-        delay(2000);
+        delay(100);
         digitalWrite(D1, LOW);
         return 6;
     }
