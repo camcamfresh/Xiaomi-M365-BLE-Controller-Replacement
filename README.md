@@ -32,7 +32,7 @@ Work in Progress/Future Work:
   - T is the message type: 0x01 = Read, and 0x03 = Write.
   - C is the command type (e.g. lock, unlock, etc.).
   - ... varies in size, but the first byte is usually on or off.
-  - Ck0 and Ck1 are the checksum values to confirm the integrity of the message: to calculate this value we add all of the previous bytes together except 0x55, 0xAA. We then take this sum and preform an XOR operation (%) with the sum and 0xFFFF. The result of this calculation contains Ck1 and Ck0, respectively. To reverse the order, I convert the result into a string and use substring. The resulting Ck0 and Ck1 strings are then converted back to HEX.
+  - Ck0 and Ck1 are the checksum values to confirm the integrity of the message: to calculate this value we add all of the previous bytes together except 0x55, 0xAA. We then take this sum and preform an XOR operation (^) with the sum and 0xFFFF. The result of this calculation contains Ck1 and Ck0, respectively. To reverse the order, I convert the result into a string and use substring. The resulting Ck0 and Ck1 strings are then converted back to HEX.
   - Source of Communication Protocol Information: https://github.com/CamiAlfa/M365-BLE-PROTOCOL/blob/master/protocolo
   
 
