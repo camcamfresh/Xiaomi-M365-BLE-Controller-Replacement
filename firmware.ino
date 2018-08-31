@@ -1,107 +1,93 @@
-SYSTEM_THREAD(ENABLED); //Prevents loss of cell signal from interupting the program.
+#include <NMEAGPS.h> //Part of NeoGPS Library
+#include "Serial4/Serial4.h" //Enables GPS Serial Port
+SYSTEM_THREAD(ENABLED); //Prevents unwanted interuptions in program.
 
-char speed, brake, ck1, ck2, ck3, ck4;
-unsigned char motor[] = {0x55, 0xAA, 0x7, 0x20, 0x65, 0x0, 0x4, speed, brake, 0x0, 0x0, ck1, ck2};
-unsigned char motor1[] = {0x55, 0xAA, 0x9, 0x20, 0x64, 0x0, 0x6, speed, brake, 0x0, 0x0, 0x72, 0x0, ck3, ck4};
-unsigned char lock [] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x70, 0x1, 0x0, 0x67, 0xFF};
-unsigned char unlock[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x71, 0x1, 0x0, 0x66, 0xFF};
-unsigned char tailon[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x2, 0x0, 0x59, 0xFF};
-unsigned char tailoff[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x0, 0x0, 0x5B, 0xFF};
-unsigned char cruiseon[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x1, 0x0, 0x5B, 0xFF};
-unsigned char cruiseoff[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x0, 0x0, 0x5C, 0xFF};
+char alarm, beep, locked, messagelength, recieverindex, messageindex;
+int batterylevel, calc, averageVelocity, temperature, odometer, velocity;
+NMEAGPS gps;
+String gpsurl;
 
 void setup() {
-    Serial1.begin(115200); //ESC Serial Start
-    Serial1.halfduplex(true); //ESC One Wire Communication
+    Serial1.begin(115200); //Scooter Serial Port
+    Serial1.halfduplex(true); //One Wire Communication
+    Serial4.begin(9600); //GPS Serial Port
+    
     Particle.function("CloudCommand", cloudCommand);
-    pinMode(A1, INPUT); //Brake Lever Sensor
-    pinMode(A2, INPUT); //Motor Throttle Sensor
-    pinMode(D0, INPUT); //Power Monitor
-    pinMode(D1, OUTPUT); //Power    
+    Particle.variable("AvgVelocity", averageVelocity);
+    Particle.variable("BatteryLevel", batterylevel);
+    Particle.variable("Location", gpsurl);
+    Particle.variable("Odometer", odometer);
+    Particle.variable("Temperature", temperature);
+    Particle.variable("Velocity", velocity);
+    
+    pinMode(A3, INPUT); //Brake Lever Sensor
+    pinMode(A4, INPUT); //Motor Throttle Sensor
+    pinMode(D0, INPUT);//Power Monitor
+    pinMode(D1, OUTPUT);//Power
+    pinMode(D2, OUTPUT);//Buzer
+    pinMode(D3, OUTPUT);//Red (Lock)
+    pinMode(D4, OUTPUT);//Green (Unlock)
+    pinMode(D5, OUTPUT);//Blue (Connecting)
 }
 void loop() {
-    esccontrol();
-    powercheck();
+    escControl();
+    backgroundProcess();
+    gpsProcess();
 }
-void esccontrol(){
-    int control = analogRead(A1); //Get Brake Values and Store into Packets (HEX)
-    brake = map(control, 685, 3000, 0, 0xB0); //Converts Brake Lever Signal into HEX Value
-    if(brake <= 0x26) brake = 0x26;
-
-    motor[8] = brake; //Input Brake lever HEX value to the command.
-    motor1[8] = brake; 
+void escControl(){
+    //Create packets that will be sent to scooter.
+    unsigned char motor[] = {0x55, 0xAA, 0x7, 0x20, 0x65, 0x0, 0x4, 0x26, 0x26, 0x0, 0x0, 0x0, 0x0};
+    unsigned char motor1[] = {0x55, 0xAA, 0x9, 0x20, 0x64, 0x0, 0x6, 0x26, 0x26, 0x0, 0x0, 0x72, 0x0, 0x0, 0x0};
+    unsigned char inforequest[] = {0x55, 0xAA, 0x6, 0x20, 0x61, 0xB0, 0x20, 0x02, 0x28, 0x26, 0x58, 0xFE};
     
-    int value = analogRead(A2); //Get Throttle Values and Store into Packets (HEX)
-    speed = map(value, 685, 3000, 0, 0xB0); //Converts Throttle Lever Signal into HEX Value
+    //Capture Brake and Throttle Values and Store into Packets.
+    char brake = map(analogRead(A3), 685, 3000, 0, 0xB0);
+    if(brake <= 0x26) brake = 0x26;
+    motor[8] = brake; 
+    motor1[8] = brake;
+    
+    char speed = map(analogRead(A4), 685, 3000, 0, 0xB0);
     if(speed <= 0x26) speed = 0x26;
-
-    motor[7] = speed; //Input Throttle lever HEX value to the command.
+    motor[7] = speed;
     motor1[7] = speed;
     
-    //Calculates CK0 and CK1 for motor
-    uint16_t calccrc =  (motor[2] + motor[3] + motor[4] + motor[5] + motor[6] + motor[7] + motor[8] + motor[9] + motor[10]) ^ 0xFFFF;
-    String crc = String(calccrc, HEX);
-    ck1 = hexstring(crc.substring(2,4)); //Reverses Result and Converts to HEX Value
-    ck2 = hexstring(crc.substring(0,2));
-    motor[11] = ck1; //Input CK HEX value to the command/
+    motor[10] = beep; //Provides confirmation to the scooter that we made a beep.
+    motor1[10] = beep;
+    
+    inforequest[8] = speed;
+    inforequest[9] = brake;
+    
+    //Calculate checksums for all three packets.
+    uint16_t calc =  (motor[2] + motor[3] + motor[4] + motor[5] + motor[6] + motor[7] + motor[8] + motor[9] + motor[10]) ^ 0xFFFF;
+    char ck1 = hexstring(String(calc, HEX).substring(2,4)); //The two checksum values are reversed.
+    char ck2 = hexstring(String(calc, HEX).substring(0,2));
+    motor[11] = ck1;
     motor[12] = ck2;
     
-    //Calcculate CRC for motor1
-    uint16_t calccrc1 = (motor1[2] + motor1[3] + motor1[4] + motor1[5] + motor1[6] + motor1[7] + motor1[8] + motor1[9] + motor1[10] + motor1[11] + motor1[12]) ^ 0xFFFF;
-    String crc1 = String(calccrc1, HEX);
-    ck3 = hexstring(crc1.substring(2,4));
-    ck4 = hexstring(crc1.substring(0,2));
-    motor1[13] = ck3; //Input CK HEX value to the command/
+    uint16_t calc1 = (motor1[2] + motor1[3] + motor1[4] + motor1[5] + motor1[6] + motor1[7] + motor1[8] + motor1[9] + motor1[10] + motor1[11] + motor1[12]) ^ 0xFFFF;
+    char ck3 = hexstring(String(calc1, HEX).substring(2,4));
+    char ck4 = hexstring(String(calc1, HEX).substring(0,2));
+    motor1[13] = ck3;
     motor1[14] = ck4;
 
-    //Send Packets to ESC
-    Serial1.write(motor1, sizeof(motor1)); delay(10);
+    uint16_t calc2 = (inforequest[2] + inforequest[3] + inforequest[4] + inforequest[5] + inforequest[6] + inforequest[7] + inforequest[8] + inforequest[9]) ^ 0xFFFF;
+    char ck5 = hexstring(String(calc2, HEX).substring(2,4));
+    char ck6 = hexstring(String(calc2, HEX).substring(0,2));
+    inforequest[10] = ck5;
+    inforequest[11] = ck6;
+    
+    //Send Packets to Scooter
+    Serial1.write(motor, sizeof(motor)); delay(10); //Sends control values to scooter.
     Serial1.write(motor, sizeof(motor)); delay(10);
     Serial1.write(motor, sizeof(motor)); delay(10);
     Serial1.write(motor, sizeof(motor)); delay(10);
-    Serial1.write(motor, sizeof(motor)); delay(10);    
+    if(Serial1.available()) escReader(); //Clears Serial Buffer; it seems to recieve the packets we transmit, if we do not clear the buffer.
+    Serial1.write(motor1, sizeof(motor1)); delay(10); //Sends control values and request X1 structure from scooter.
+    if(Serial1.available()) escReader(); //Read X1 Structure from the Scooter.
+    Serial1.write(inforequest, sizeof(inforequest)); delay(10); //Sends control values and request scooter trip information.
+    if(Serial1.available()) escReader(); //Read scooter trip information.
+    
 }
-/* The scooter will automatically turn off every 5 minutes, when not in use. This ensures power is always on. If the power
-turns off, a battery connected to the replacement microcontroller provides enough power to activate a transistor and restore power. */
-void powercheck(){
-    if(digitalRead(D0) == LOW){
-        digitalWrite(D1, HIGH);
-        delay(100);
-        digitalWrite(D1, LOW);
-    }
-}
-int cloudCommand(String com){
-    if(com == "unlock"){
-        Serial1.write(unlock, sizeof(unlock));
-        return 0;
-    }
-    else if(com == "lock"){
-        Serial1.write(lock, sizeof(lock));
-        return 1;
-    }
-    else if(com == "tailoff"){
-        Serial1.write(tailoff, sizeof(tailoff));
-        return 2;
-    }
-    else if(com == "tailon"){
-        Serial1.write(tailon, sizeof(tailon));
-        return 3;
-    }
-    else if(com == "cruiseon"){
-        Serial1.write(cruiseon, sizeof(cruiseon));
-        return 4;
-    }
-    else if(com == "cruiseoff"){
-        Serial1.write(cruiseoff, sizeof(cruiseoff));
-        return 5;
-    }
-    else if(com == "power"){
-        digitalWrite(D1, HIGH);
-        delay(100);
-        digitalWrite(D1, LOW);
-        return 6;
-    }
-} //Performs Commands from Internet.
 char hexstring(String data){
     char hex = 0;
     if(data.length() == 2){
@@ -120,7 +106,8 @@ char hexstring(String data){
             else if(data.charAt(0) == 'd') hex = 0xD0;
             else if(data.charAt(0) == 'e') hex = 0xE0;
             else if(data.charAt(0) == 'f') hex = 0xF0;
-        if(data[1] == '1') hex = 0x01;
+        if(data[1] == '0') hex = 0x0 + hex;
+            else if(data.charAt(1) == '1') hex = 0x1 + hex;
             else if(data.charAt(1) == '2') hex = 0x2 + hex;
             else if(data.charAt(1) == '3') hex = 0x3 + hex;
             else if(data.charAt(1) == '4') hex = 0x4 + hex;
@@ -136,8 +123,9 @@ char hexstring(String data){
             else if(data.charAt(1) == 'e') hex = 0xE + hex;
             else if(data.charAt(1) == 'f') hex = 0xF + hex;
     }
-    if(data.length() < 2){
-        if(data.charAt(0) == '1') hex = 0x1;
+    if(data.length() == 1){
+        if(data.charAt(0) == '0') hex = 0x0;
+            else if(data.charAt(0) == '1') hex = 0x1;
             else if(data.charAt(0) == '2') hex = 0x2;
             else if(data.charAt(0) == '3') hex = 0x3;
             else if(data.charAt(0) == '4') hex = 0x4;
@@ -154,4 +142,170 @@ char hexstring(String data){
             else if(data.charAt(0) == 'f') hex = 0xF;
     }
     return hex;
-} //Converts a String to actual HEX.
+} //Converts a String up to 2 characters long to a HEX value.
+void escReader(){
+    unsigned char start[] = {0x55, 0xAA, 0xF, 0x24, 0x1, 0x0, 0x4D, 0x49, 0x53, 0x63, 0x6F, 0x6F, 0x74, 0x65, 0x72, 0x35, 0x32, 0x31, 0x39, 0x85, 0xFB}, reciever[64];
+    while(Serial1.available()){
+        char data = Serial1.read();
+        switch(recieverindex){
+            case 0: //Read Header
+                if(data == 0x55){ 
+                    reciever[0] = data;
+                    recieverindex++;
+                }
+                break;
+            case 1: //Read Header
+                if(data == 0xAA){
+                    reciever[1] = data;
+                    recieverindex++;
+                }
+                break;
+            case 2: //Read Message Length
+                reciever[2] = data;
+                messagelength = data + 5;
+                recieverindex++;
+                messageindex = 3;
+                calc = data;
+                break;
+            case 3: //Read Message
+                reciever[messageindex] = data;
+                calc += data;
+                messageindex++;
+                if(messageindex == messagelength) recieverindex++;
+                break;
+            case 4: //Read Last Byte and verify checksum.
+                reciever[messageindex] = data;
+                calc += data;
+                calc ^= 0xFFFF;
+                if(calc == (reciever[messagelength - 1] + reciever[messagelength])) recieverindex++;
+                    else recieverindex = 10;
+            case 5: //Separates packets by address.
+                switch(reciever[3]){
+                    case 0x21:
+                        if(reciever[2] == 0x02) Serial1.write(start, sizeof(start));
+                        else if(reciever [2] == 0x06){
+                            beep = reciever[9];
+                            if(beep == 0x01){ //Scooter reqest a short beep when BLE controller is connected, the scooter's alarm is activated, or charging begins.
+                                tone(D2, 20, 50);
+                            }
+                            else if(beep == 0x02){//Scooter request a long beep when cruise is enabled and activated.
+                                tone(D2, 20, 100);
+                                beep = 0x01;
+                            }
+                            else if(beep == 0x03){//Scooter request a short beep when battery is fully charged.
+                                tone(D2, 20, 50);
+                                beep = 0x01;
+                            }
+                        }
+                        recieverindex = 10;
+                        break;
+                    case 0x23:
+                        if(reciever[2] == 0x22){
+                            alarm = reciever[8]; //Reads 0x09 when alarm is active.
+                            locked = reciever[10]; //Reads 0x00 when unlocked, 0x02 when locked, and 0x06 when the alarm is active.
+                            batterylevel = (String(reciever[14], DEC)).toInt();
+                            velocity = ((reciever[17] * 256) + reciever[16]) / 1000 / 1.60934; //Reads speed (which is in HEX), converts to mph.
+                            averageVelocity = ((reciever[19] * 265) + reciever[18]) / 1000 / 1.60934;
+                            odometer = ((reciever[22] * 256 * 256) + (reciever[21] * 256) + reciever[20]) / 1000 / 1.60934;
+                            temperature = (((reciever[29] * 256) + reciever[28]) / 10 * 9 / 5) + 32; //Reads temperature, converts to F.
+                            if(alarm == 0x09){
+                                tone(D2, 20, 5000);
+                                Particle.publish("Alarm", "Alarm Alert!");
+                            }
+                        }
+                        recieverindex = 10;
+                        break;
+                    default:
+                        recieverindex = 10;
+                        break;
+                }
+            case 10: //Erases reciever array.
+                for(int erase = 0; erase <= messagelength; erase++) reciever[erase] = 0;
+                recieverindex = 0;
+                break;
+            default:
+                recieverindex = 10;
+                break;
+        }
+    }
+}
+void backgroundProcess(){
+    if(digitalRead(D0) == LOW){ //D0 monitors the power from the scooter.
+        digitalWrite(D1, HIGH); //D1 connects to a transistor to switch power on, if it is off.
+        delay(100);
+        digitalWrite(D1, LOW); //D1 transistor connected to scooter 40V line and ground.
+    }
+    if(locked == 0x0 && Particle.connected()){
+        digitalWrite(D3, LOW);
+        digitalWrite(D4, HIGH);
+        digitalWrite(D5, LOW);
+    }
+    else if(locked == 0x02 && Particle.connected()){
+        digitalWrite(D3, HIGH);
+        digitalWrite(D4, LOW);
+        digitalWrite(D5, LOW);
+    }
+    else if(locked == 0x06 && Particle.connected()){
+        digitalWrite(D3, LOW);
+        digitalWrite(D4, LOW);
+        digitalWrite(D5, HIGH);
+    }
+    else if(!Particle.connected()){
+        digitalWrite(D3, LOW);
+        digitalWrite(D4, LOW);
+        digitalWrite(D5, HIGH);
+    }
+}
+void gpsProcess(){
+    if(Serial4.available() >= 0){
+        while (gps.available(Serial4)){
+            gps_fix fix = gps.read();
+            if(fix.valid.location)
+                gpsurl = "https://maps.google.com/?q=" + String(fix.latitude(), 6) + "," + String(fix.longitude(), 6);
+        }
+    }
+}
+int cloudCommand(String command){
+    unsigned char lock [] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x70, 0x1, 0x0, 0x67, 0xFF};
+    unsigned char unlock[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x71, 0x1, 0x0, 0x66, 0xFF};
+    unsigned char tailon[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x2, 0x0, 0x59, 0xFF};
+    unsigned char tailoff[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x0, 0x0, 0x5B, 0xFF};
+    unsigned char cruiseon[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x1, 0x0, 0x5B, 0xFF};
+    unsigned char cruiseoff[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x0, 0x0, 0x5C, 0xFF};
+    
+    if(command == "unlock"){
+        Serial1.write(unlock, sizeof(unlock));
+        return 0;
+    }
+    else if(command == "lock"){
+        Serial1.write(lock, sizeof(lock));
+        return 1;
+    }
+    else if(command == "tailoff"){
+        Serial1.write(tailoff, sizeof(tailoff));
+        return 2;
+    }
+    else if(command == "tailon"){
+        Serial1.write(tailon, sizeof(tailon));
+        return 3;
+    }
+    else if(command == "cruiseoff"){
+        Serial1.write(cruiseoff, sizeof(cruiseoff));
+        return 4;
+    }
+    else if(command == "cruiseon"){
+        Serial1.write(cruiseon, sizeof(cruiseon));
+        return 5;
+    }
+    else if(command == "power"){
+        digitalWrite(D1, HIGH);
+        delay(100);
+        digitalWrite(D1, LOW);
+        return 9;
+    }
+    else if(command == "alarm"){
+        tone(D2, 20, 5000);
+        return 10;
+    }
+    else return -1;
+} //Performs Lock/Unlock Commands from Cloud.
