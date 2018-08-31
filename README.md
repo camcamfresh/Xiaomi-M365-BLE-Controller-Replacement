@@ -35,7 +35,7 @@ Work in Progress/Future Work:
   - The BMS Controller:
     - monitors battery levels and keeps batteries in health condition,
     - sends values (upon request) to BLE including overall & individual cell battery levels, temperatures, etc.
-# Communication Protocol:
+# Packet Protocol:
 - The scooter's controllers communicate to each other using HEX protocols. For example, a single packet looks like this:
   - | 0x55 | 0xAA | L | D | T | C | ... | Ck0 | Ck1 |
   - 0x55 and 0xAA are fixed headers that signal a packet is being transmitted.
