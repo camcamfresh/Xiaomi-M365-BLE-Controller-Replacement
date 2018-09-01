@@ -65,6 +65,7 @@ Hardware Implementation
   
 # Message Information:
 - The X1 Structure looks like: | 0x55 | 0xAA | 0x06 | 0x21 | 0x64 | 0 | D | L | H | B | Ck0 | Ck1 |
+  - The X1 Structure is a reply to the this packet motor1 in the program.
   - 0x55 and 0xAA are fixed headers that signal a packet is being transmitted.
   - 0x06 is the size of the message
   - 0x21 is the sender of the message (the X1 structure).
@@ -76,6 +77,7 @@ Hardware Implementation
   - B is the beep reqeuest (the motor controller expects a reply confirming that the BLE beeped).
   - Ck0 and Ck1 are the checksum values.
 - The Information Structure looks like: | 0x55 | 0xAA | 0x22 | 0x23 | ... | Ck0 | Ck1 |
+  - This Information Stucture is a reply to inforequest in the program
   - If it were in an array:
     - array[0] = 0x55;
     - array[8] = alarm alert; 0x0 = alarm off, 0x09 = alarm on.
