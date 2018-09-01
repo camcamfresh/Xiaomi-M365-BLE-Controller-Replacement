@@ -63,4 +63,28 @@ Hardware Implementation
   - Ck0 and Ck1 are the checksum values to confirm the integrity of the message: to calculate this value we add all of the previous bytes together except 0x55 and 0xAA. We then take this sum and preform an XOR operation (^) with the sum and 0xFFFF. The result of this calculation contains Ck1 and Ck0, respectively. To reverse the order, I convert the result into a string and use substring. The resulting Ck0 and Ck1 strings are then converted back to HEX.
   - Source of Communication Protocol Information: https://github.com/CamiAlfa/M365-BLE-PROTOCOL/blob/master/protocolo
   
+# Message Information:
+- The X1 Structure looks like: | 0x55 | 0xAA | 0x06 | 0x21 | 0x64 | 0 | D | L | H | B | Ck0 | Ck1 |
+  - 0x55 and 0xAA are fixed headers that signal a packet is being transmitted.
+  - 0x06 is the size of the message
+  - 0x21 is the sender of the message (the X1 structure).
+  - 0x64 is the command of the message.
+  - 0 is a 0.
+  - D is the drive mode: 0x0 = Inactive, 0x01 = Active, 0x02 = Eco Inactive, 0x03 = Eco Active (Drive mode is active when the wheel is moving, however does not mean the motor is on).
+  - L is the amount of LED that should be lit on the BLE dashboard.
+  - H is the headlight led: 0x0 = off, 0x64 = on.
+  - B is the beep reqeuest (the motor controller expects a reply confirming that the BLE beeped).
+  - Ck0 and Ck1 are the checksum values.
+- The Information Structure looks like: | 0x55 | 0xAA | 0x22 | 0x23 | ... | Ck0 | Ck1 |
+  - If it were in an array:
+    - array[0] = 0x55;
+    - array[8] = alarm alert; 0x0 = alarm off, 0x09 = alarm on.
+    - array[10] = lock status; 0x0 = unlocked, 0x02 = locked, 0x06 = alarm on (locked).
+    - array[14] = battery level; 0x64 = 100%.
+    - array[16], and [17] is the current speed in kph.
+    - array[18], and [19] is the average speed in kph.
+    - array[20], [21], and [22] is the odometer reading in km.
+    - array[23], [24], and [25] is the single millage reading in km.
+    - array[26], and [27] is the motor controls timer.
+    - array[28] is the temperature in C. 
 
