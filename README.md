@@ -16,7 +16,23 @@ Work in Progress/Future Work:
 - Add option for eco mode.
 - Add energy recovery commands.
 
-
+Hardware Implementation
+- To ensure continuous power:
+  - Connect the data line to the Particle Electron's TX pin.
+  - Connect the 5V power line to both the Particle Electron's VIN pin and D0 pin.
+  - Connect the ground line to both the Particle Electron's ground pin and to a transistor (I use a 2N2222A transistor).
+  - Connect the 40V hot line to the transistor.
+  - Connect a wire to the transistor and D1 (when this wire is pulled high, the tranisitor (if properly wired) will connect the 40V hot line turning on the scooter. 
+  - This is necessary as the scooter will automatically turn off after 5 minutes when unlocked. If the scooter does not supply power continuously, the Particle Electron's battery could die, which would not be good for locating it when lost.
+- For data communication only:
+  - Connect the data line to the Particle Electron's TX pin.
+  - Connect the ground line to the Particle Electron's ground pin.
+  - Note: you will need to ensure the scooter's motor controller is on (the red light) before Serial communication will be successful.
+- Throttle and Brake Input:
+  - Connect ground wires to Particle Electron's ground pin.
+  - Connect hot wires to Particle Electron's 3.3V pin.
+  - Connect brake wire to Particle Electron's A3 pin.
+  - Connect throttle wire to Particle Electron's A4 pin.
 
 # How the Xiaomi M365 Operates:
 - The scooter is composed of 3 microcontrollers: the Bluetooth (BLE) controller, the motor controller, and the battery management system (BMS) controller.
