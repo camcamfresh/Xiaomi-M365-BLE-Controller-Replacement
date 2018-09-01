@@ -76,7 +76,7 @@ Hardware Implementation
   - H is the headlight led: 0x0 = off, 0x64 = on.
   - B is the beep reqeuest (the motor controller expects a reply confirming that the BLE beeped).
   - Ck0 and Ck1 are the checksum values.
-- The Information Structure looks like: | 0x55 | 0xAA | 0x22 | 0x23 | ... | Ck0 | Ck1 |
+- An Information Structure looks like: | 0x55 | 0xAA | 0x22 | 0x23 | ... | Ck0 | Ck1 |
   - This Information Stucture is a reply to inforequest in the program
   - If it were in an array:
     - array[0] = 0x55;
@@ -89,4 +89,9 @@ Hardware Implementation
     - array[23], [24], and [25] is the single millage reading in km.
     - array[26], and [27] is the motor controls timer.
     - array[28] is the temperature in C. 
-
+- An Informationn Structure looks like: | 0x55 | 0xAA | 0x06 | 0x23 | 0x01 | 0x7B | E | 0x0 | C | 0 | Ck0 | Ck1 |
+  - E is the Engergy Recovery Strength: 0x0 = low, 0x01 = med, 0x02 = high.
+  - C is the cruise control setting: 0x0 = cruise control disabled, 0x01 = cruise control enabled (this does not mean cruies control is active).
+  - This Information Structuer is a reply to: | 0x55 | 0xAA | 0x06 | 0x20 | 0x61 | 0x7B | 0x04 | 0x02 | T | B | Ck0 | Ck1 |
+    - T is the throttle value.
+    - B is the brake value.
