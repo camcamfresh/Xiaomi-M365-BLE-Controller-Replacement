@@ -1,5 +1,5 @@
 # Project Goal
-The goal of this project is to simulate/imitate data received by the BLE Controller on the Xiaomi M365 Scooter with a microcontroller with cellular capabilities (Particle Electron).
+The goal of this project is to simulate/imitate data communication between the BLE Controller and the motor controller on the Xiaomi M365 Scooter with a microcontroller with cellular capabilities, the Particle Electron.
 
 # Project Information
 
