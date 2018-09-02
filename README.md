@@ -72,24 +72,25 @@ Hardware Implementation
   - 0x64 is the command of the message.
   - 0 is a 0.
   - D is the drive mode: 0x0 = Inactive, 0x01 = Active, 0x02 = Eco Inactive, 0x03 = Eco Active (Drive mode is active when the wheel is moving, however does not mean the motor is on).
-  - L is the amount of LED that should be lit on the BLE dashboard.
-  - H is the headlight led: 0x0 = off, 0x64 = on.
+  - L is the amount of LED's that should be lit on the BLE dashboard.
+  - H is the headlight led: 0x0 = off, 0x64 = on (I think this turns on the tail light too).
   - B is the beep reqeuest (the motor controller expects a reply confirming that the BLE beeped).
   - Ck0 and Ck1 are the checksum values.
-- An Information Structure looks like: | 0x55 | 0xAA | 0x22 | 0x23 | ... | Ck0 | Ck1 |
+- One of the Information Structures looks like: | 0x55 | 0xAA | 0x22 | 0x23 | ... | Ck0 | Ck1 |
   - This Information Stucture is a reply to inforequest in the program
   - If it were in an array:
-    - array[0] = 0x55;
+    - array[0] = 0x55, which is the first part of the header,
     - array[8] = alarm alert; 0x0 = alarm off, 0x09 = alarm on.
-    - array[10] = lock status; 0x0 = unlocked, 0x02 = locked, 0x06 = alarm on (locked).
-    - array[14] = battery level; 0x64 = 100%.
-    - array[16], and [17] is the current speed in kph.
-    - array[18], and [19] is the average speed in kph.
-    - array[20], [21], and [22] is the odometer reading in km.
-    - array[23], [24], and [25] is the single millage reading in km.
-    - array[26], and [27] is the motor controls timer.
-    - array[28] is the temperature in C. 
-- An Informationn Structure looks like: | 0x55 | 0xAA | 0x06 | 0x23 | 0x01 | 0x7B | E | 0x0 | C | 0 | Ck0 | Ck1 |
+    - array[10] = lock status; 0x0 = unlocked, 0x02 = locked, 0x06 = alarm on (therefore also locked).
+    - array[14] = battery level in percent; ex: 0x64 = 100%.
+    - array[16], and [17] is the current speed in kph*.
+    - array[18], and [19] is the average speed in kph*.
+    - array[20], [21], and [22] is the odometer reading in km*.
+    - array[23], [24], and [25] is the single millage reading in km*.
+    - array[26], and [27] is the motor controls timer*.
+    - array[28] is the temperature in C.
+    - *These values are calculated in HEX, where the first character in the array represents the one's place, the second character represents the ten's place, and, if applicable, the third character represents the hundreds place. Since the values are calculated in HEX, one must multiple the ten's place by 256 and the hundred's place by 256^2. For example, an odometer readeing of [0xC6, 0x4E, 0x02] would be the decimal equivelent of 151,238 (198[0xC6] + (78[0x4E] * 256) + (2[0x02] * 256 * 256)). In this example, the odometer reades 151.238 km. Note that we divided by 1000 to get the result in km, and this divisor will change for different unit types. For example, temperature (in C) is divided by 10 instead of 1000.
+- Another Informationn Structure looks like: | 0x55 | 0xAA | 0x06 | 0x23 | 0x01 | 0x7B | E | 0x0 | C | 0 | Ck0 | Ck1 |
   - E is the Engergy Recovery Strength: 0x0 = low, 0x01 = med, 0x02 = high.
   - C is the cruise control setting: 0x0 = cruise control disabled, 0x01 = cruise control enabled (this does not mean cruies control is active).
   - Not sure what the 0's represent.
