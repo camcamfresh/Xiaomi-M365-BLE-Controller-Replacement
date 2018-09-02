@@ -39,17 +39,17 @@ Hardware Implementation
   - The BLE Controller:
     - Can send single commands to the motor controller (tail light on/off, cruise control on/off, lock/unlock),
     - Continuously sends values of the brake and throttle levers,
-    - Turns the power to the scooter on by touching ground and 40V hot to each other for less than a second,
-    - Turns on the headlight led and tail light led by touching ground and 40V hot to each other for less than a second after powered on,
+    - Turns the power to the scooter on by touching ground and 40V hot to each other for less than a second, 
+    - Turns on the headlight led and tail light led by touching ground and 40V hot to each other for less than a second after powered on, and
     - Is connected to motor controller by four wires (ground [black], data [yellow], and two hot lines: 5V [red] & 40V [green]), and
     - communicates via a serial connection at half-duplex (115200bps, 8 data bits, no parity bit, one stop bit (8n1)).
   - The Motor Controller:
     - solely operates the brushless D.C. (BLDC) motor,
     - connects to the ESC controller by four wires (mentioned above),
-    - connects to the BMS controller by three wires (ground, data, and tail light power [not sure about the colors]),
+    - connects to the BMS controller by three wires (ground, data, and tail light power [not sure about the colors]), and
     - connects to the BLDC motor with three big power wires and five other wires (the three big wires are power wires that switch on and off in specific orders to move the BLDC motor, while (I think) the five other wires monitor the position of the motor),
   - The BMS Controller:
-    - monitors battery levels and keeps batteries in health condition,
+    - monitors battery levels and keeps batteries in a healthy condition, and
     - sends values (upon request) to BLE including overall & individual cell battery levels, temperatures, etc.
 # Packet Protocol:
 - The scooter's controllers communicate to each other using HEX protocols. For example, a single packet looks like this:
