@@ -1,38 +1,52 @@
 #include <NMEAGPS.h> //Part of NeoGPS Library
 #include "Serial4/Serial4.h" //Enables GPS Serial Port
-SYSTEM_THREAD(ENABLED); //Prevents unwanted interuptions in program.
+SYSTEM_THREAD(ENABLED); //Prevents unwanted interuptions in program due to cellular disconnection.
 
 char alarm, beep, locked, messagelength, recieverindex, messageindex;
-int batterylevel, calc, averageVelocity, temperature, odometer, velocity;
+unsigned char lock [] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x70, 0x1, 0x0, 0x67, 0xFF};
+unsigned char unlock[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x71, 0x1, 0x0, 0x66, 0xFF};
+unsigned char tailon[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x2, 0x0, 0x59, 0xFF};
+unsigned char tailoff[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x0, 0x0, 0x5B, 0xFF};
+unsigned char cruiseon[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x1, 0x0, 0x5B, 0xFF};
+unsigned char cruiseoff[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x0, 0x0, 0x5C, 0xFF};
+int batterylevel, driveStatus, escHeadLedStatus, calc, lockCommand = 1, ledpower = 1, powerControl = 1, alarmCommand = 1, averageVelocity, temperature, odometer, velocity;
 NMEAGPS gps;
-String gpsurl;
+PMIC pmic;
+String gpsurl, gpsvalid;
+
 
 void setup() {
+    Serial.begin(); //Computer Serial Monitor
     Serial1.begin(115200); //Scooter Serial Port
-    Serial1.halfduplex(true); //One Wire Communication
+    Serial1.halfduplex(true); //Half Duplex Serial Communication
     Serial4.begin(9600); //GPS Serial Port
     
     Particle.function("CloudCommand", cloudCommand);
     Particle.variable("AvgVelocity", averageVelocity);
     Particle.variable("BatteryLevel", batterylevel);
+    Particle.variable("Coordinates", gpsvalid);
     Particle.variable("Location", gpsurl);
     Particle.variable("Odometer", odometer);
     Particle.variable("Temperature", temperature);
     Particle.variable("Velocity", velocity);
+    Particle.variable("DriveStatus", driveStatus);
+    Particle.variable("LightsOn", escHeadLedStatus);
     
     pinMode(A3, INPUT); //Brake Lever Sensor
     pinMode(A4, INPUT); //Motor Throttle Sensor
-    pinMode(D0, INPUT);//Power Monitor
-    pinMode(D1, OUTPUT);//Power
-    pinMode(D2, OUTPUT);//Buzer
-    pinMode(D3, OUTPUT);//Red (Lock)
-    pinMode(D4, OUTPUT);//Green (Unlock)
-    pinMode(D5, OUTPUT);//Blue (Connecting)
+    pinMode(D0, OUTPUT); //Power Switch
+    pinMode(D2, OUTPUT); //Buzer
+    pinMode(D3, OUTPUT); //Red (Lock)
+    pinMode(D4, OUTPUT); //Green (Unlock)
+    pinMode(D5, OUTPUT); //Blue (Connecting)
+    pinMode(D6, OUTPUT); //Headlight tied to 3.3V to 6V converter.
 }
 void loop() {
     escControl();
     backgroundProcess();
     gpsProcess();
+    Particle.process();
+    if(!Particle.connected() && lockCommand == 1) Particle.connect();
 }
 void escControl(){
     //Create packets that will be sent to scooter.
@@ -40,13 +54,13 @@ void escControl(){
     unsigned char motor1[] = {0x55, 0xAA, 0x9, 0x20, 0x64, 0x0, 0x6, 0x26, 0x26, 0x0, 0x0, 0x72, 0x0, 0x0, 0x0};
     unsigned char inforequest[] = {0x55, 0xAA, 0x6, 0x20, 0x61, 0xB0, 0x20, 0x02, 0x28, 0x26, 0x58, 0xFE};
     
-    //Capture Brake and Throttle Values and Store into Packets.
-    char brake = map(analogRead(A3), 685, 3000, 0, 0xB0);
+    //Capture Brake and Throttle Values and Store into Packets above.
+    char brake = map(analogRead(A3), 685, 4095, 0, 0xC2);
     if(brake <= 0x26) brake = 0x26;
     motor[8] = brake; 
     motor1[8] = brake;
     
-    char speed = map(analogRead(A4), 685, 3000, 0, 0xB0);
+    char speed = map(analogRead(A4), 685, 4095, 0, 0xC2);
     if(speed <= 0x26) speed = 0x26;
     motor[7] = speed;
     motor1[7] = speed;
@@ -54,7 +68,7 @@ void escControl(){
     motor[10] = beep; //Provides confirmation to the scooter that we made a beep.
     motor1[10] = beep;
     
-    inforequest[8] = speed;
+    inforequest[8] = speed; //This is a information request for various values such as speed, odeometer, temperature, etc.
     inforequest[9] = brake;
     
     //Calculate checksums for all three packets.
@@ -81,7 +95,7 @@ void escControl(){
     Serial1.write(motor, sizeof(motor)); delay(10);
     Serial1.write(motor, sizeof(motor)); delay(10);
     Serial1.write(motor, sizeof(motor)); delay(10);
-    if(Serial1.available()) escReader(); //Clears Serial Buffer; it seems to recieve the packets we transmit, if we do not clear the buffer.
+    if(Serial1.available()) escReader(); //Clears Serial Buffer; it seems to recieve the packets we transmit.
     Serial1.write(motor1, sizeof(motor1)); delay(10); //Sends control values and request X1 structure from scooter.
     if(Serial1.available()) escReader(); //Read X1 Structure from the Scooter.
     Serial1.write(inforequest, sizeof(inforequest)); delay(10); //Sends control values and request scooter trip information.
@@ -185,6 +199,8 @@ void escReader(){
                         if(reciever[2] == 0x02) Serial1.write(start, sizeof(start));
                         else if(reciever [2] == 0x06){
                             beep = reciever[9];
+                            driveStatus =  (String(reciever[6], DEC)).toInt();
+                            escHeadLedStatus =  (String(reciever[8], DEC)).toInt();
                             if(beep == 0x01){ //Scooter reqest a short beep when BLE controller is connected, the scooter's alarm is activated, or charging begins.
                                 tone(D2, 20, 50);
                             }
@@ -208,9 +224,15 @@ void escReader(){
                             averageVelocity = ((reciever[19] * 265) + reciever[18]) / 1000 / 1.60934;
                             odometer = ((reciever[22] * 256 * 256) + (reciever[21] * 256) + reciever[20]) / 1000 / 1.60934;
                             temperature = (((reciever[29] * 256) + reciever[28]) / 10 * 9 / 5) + 32; //Reads temperature, converts to F.
-                            if(alarm == 0x09){
-                                tone(D2, 20, 5000);
+                            if(alarm == 0x09 && alarmCommand == 1){
                                 Particle.publish("Alarm", "Alarm Alert!");
+                                tone(D2, 20, 1000);
+                            }
+                            if(locked == 0x00 && lockCommand == 0x01){
+                                Serial1.write(lock, sizeof(lock));
+                            }
+                            else if((locked == 0x02 || locked == 0x06) && lockCommand == 0x00){
+                                Serial1.write(unlock, sizeof(unlock));
                             }
                         }
                         recieverindex = 10;
@@ -230,82 +252,160 @@ void escReader(){
     }
 }
 void backgroundProcess(){
-    if(digitalRead(D0) == LOW){ //D0 monitors the power from the scooter.
-        digitalWrite(D1, HIGH); //D1 connects to a transistor to switch power on, if it is off.
+    if((pmic.getSystemStatus() & 0x04) == 0 && powerControl){ //Checks PMIC Function in Particle.h for power status.
+        digitalWrite(D0, HIGH); //D0 connects to a transistor to switch power on, if it is off.
         delay(100);
-        digitalWrite(D1, LOW); //D1 transistor connected to scooter 40V line and ground.
+        digitalWrite(D0, LOW); //D0 transistor connected to scooter 40V line and ground.
     }
-    if(locked == 0x0 && Particle.connected()){
+    if(escHeadLedStatus == 0x64){
+        digitalWrite(D0, HIGH);
+        delay(100);
+        digitalWrite(D0, LOW);
+    }
+    if(driveStatus == 0x02){
+        digitalWrite(D0, HIGH);
+        delay(100);
+        digitalWrite(D0, LOW);
+        delay(25);
+        digitalWrite(D0, HIGH);
+        delay(100);
+        digitalWrite(D0, LOW);
+    }
+    if(locked == 0x0 && Particle.connected() && ledpower == 1){
         digitalWrite(D3, LOW);
         digitalWrite(D4, HIGH);
         digitalWrite(D5, LOW);
     }
-    else if(locked == 0x02 && Particle.connected()){
-        digitalWrite(D3, HIGH);
+    else if(locked == 0x02 && Particle.connected() && ledpower == 1){
+        //digitalWrite(D3, HIGH); LED broken
         digitalWrite(D4, LOW);
         digitalWrite(D5, LOW);
     }
-    else if(locked == 0x06 && Particle.connected()){
+    else if(locked == 0x06 && Particle.connected() && ledpower == 1){
         digitalWrite(D3, LOW);
         digitalWrite(D4, LOW);
         digitalWrite(D5, HIGH);
     }
-    else if(!Particle.connected()){
+    else if(!Particle.connected() && ledpower == 1){
         digitalWrite(D3, LOW);
         digitalWrite(D4, LOW);
         digitalWrite(D5, HIGH);
+    }
+    else if(ledpower == 0){
+        digitalWrite(D3, LOW);
+        digitalWrite(D4, LOW);
+        digitalWrite(D5, LOW);
     }
 }
 void gpsProcess(){
     if(Serial4.available() >= 0){
-        while (gps.available(Serial4)){
+        while(gps.available(Serial4)){
             gps_fix fix = gps.read();
-            if(fix.valid.location)
+            if(fix.valid.location){
                 gpsurl = "https://maps.google.com/?q=" + String(fix.latitude(), 6) + "," + String(fix.longitude(), 6);
+                gpsvalid = "V";
+                if((String(fix.latitude()).startsWith("**.***") || String(fix.latitude()).startsWith("**.**")) && String(fix.longitude()).startsWith("**.**")){ //Home 
+                    digitalWrite(D6, LOW);
+                }
+                else if(lockCommand == 0){
+                    ledpower = 1;
+                    digitalWrite(D6, HIGH);
+                }
+                else{
+                    ledpower = 1;
+                    digitalWrite(D6, LOW);
+                }
+            }
+            else{
+                gpsvalid = "I";
+            }
         }
     }
 }
 int cloudCommand(String command){
-    unsigned char lock [] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x70, 0x1, 0x0, 0x67, 0xFF};
-    unsigned char unlock[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x71, 0x1, 0x0, 0x66, 0xFF};
-    unsigned char tailon[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x2, 0x0, 0x59, 0xFF};
-    unsigned char tailoff[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x0, 0x0, 0x5B, 0xFF};
-    unsigned char cruiseon[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x1, 0x0, 0x5B, 0xFF};
-    unsigned char cruiseoff[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x0, 0x0, 0x5C, 0xFF};
-    
     if(command == "unlock"){
-        Serial1.write(unlock, sizeof(unlock));
+        Serial1.write(tailon, sizeof(tailon));
+        digitalWrite(D6, HIGH);
+        ledpower = 1;
+        lockCommand = 0;
         return 0;
     }
     else if(command == "lock"){
-        Serial1.write(lock, sizeof(lock));
+        digitalWrite(D6, LOW);
+        lockCommand = 1;
         return 1;
-    }
-    else if(command == "tailoff"){
-        Serial1.write(tailoff, sizeof(tailoff));
-        return 2;
     }
     else if(command == "tailon"){
         Serial1.write(tailon, sizeof(tailon));
-        return 3;
+        return 2;
     }
-    else if(command == "cruiseoff"){
-        Serial1.write(cruiseoff, sizeof(cruiseoff));
-        return 4;
+    else if(command == "tailoff"){
+        Serial1.write(tailoff, sizeof(tailoff));
+        return 3;
     }
     else if(command == "cruiseon"){
         Serial1.write(cruiseon, sizeof(cruiseon));
+        return 4;
+    }
+    else if(command == "cruiseoff"){
+        Serial1.write(cruiseoff, sizeof(cruiseoff));
         return 5;
     }
-    else if(command == "power"){
-        digitalWrite(D1, HIGH);
-        delay(100);
-        digitalWrite(D1, LOW);
+    else if(command == "headon"){
+        digitalWrite(D6, HIGH);
+        return 6;
+    }
+    else if(command == "headoff"){
+        digitalWrite(D6, LOW);
+        return 7;
+    }
+    else if(command == "ledon"){
+        ledpower = 1;
+        return 8;
+    }
+    else if(command == "ledoff"){
+        ledpower = 0;
         return 9;
+    }
+    else if(command == "poweroff"){
+        digitalWrite(D0, HIGH);
+        delay(2000);
+        digitalWrite(D0, LOW);
+        powerControl = 0;
+        return 10;
+    }
+    else if(command == "poweron"){
+        digitalWrite(D0, HIGH);
+        delay(2000);
+        digitalWrite(D0, LOW);
+        powerControl = 0;
+        return 11;
     }
     else if(command == "alarm"){
         tone(D2, 20, 5000);
-        return 10;
+        return 12;
+    }
+    else if(command == "sleep"){
+        System.sleep(SLEEP_MODE_DEEP, 600, SLEEP_NETWORK_STANDBY);
+        return 13;
+    }
+    else if(command == "enablealarm"){
+        alarmCommand = 1;
+        return 14;
+    }
+    else if(command == "disablealarm"){
+        alarmCommand = 0;
+        return 15;
+    }
+    else if(command == "home"){
+        Serial1.write(tailoff, sizeof(tailoff));
+        digitalWrite(D6, LOW);
+        ledpower = 0;
+        return 16;
+    }
+    else if(command == "reset"){
+        System.reset();
+        return 100;
     }
     else return -1;
 } //Performs Lock/Unlock Commands from Cloud.
