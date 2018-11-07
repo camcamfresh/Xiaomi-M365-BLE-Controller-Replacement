@@ -3,7 +3,7 @@ The goal of this project is to simulate/imitate data communication between the B
 
 BasicMotorControl only commands the scooter's motor to work. 
 
-MotorControl commands the scooter's motor to work and includes ability to read messages from scooter's motor controller including the battery level, odometer, velocity, etc. 
+MotorControl commands the scooter's motor to work and includes ability to read messages from scooter's motor controller including the battery level, odometer, velocity, etc. It can also read the X1 structure which includes beep request from the motor controller (e.g.  when the scooter's alarm is active and needs to beep).
 
 Firmware.ino is (likely) the latest version that I am using, which contains a gps class and a backgroundProcesses class that preforms many commands.  
 
