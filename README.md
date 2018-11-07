@@ -1,5 +1,11 @@
 # Project Goal
-The goal of this project is to simulate/imitate data communication between the BLE Controller and the motor controller on the Xiaomi M365 Scooter with a microcontroller with cellular capabilities, the Particle Electron. BasicMotorControl only commands the scooter's motor to work. MotorControl commands the scooter's motor to work and includes ability to read messages from scooter's motor controller including the battery level, odometer, velocity, etc. Firmware.ino is (likely) the latest version that I am using, which contains a gps class and a backgroundProcesses class that preforms many commands.  
+The goal of this project is to simulate/imitate data communication between the BLE Controller and the motor controller on the Xiaomi M365 Scooter with a microcontroller with cellular capabilities, the Particle Electron. 
+
+BasicMotorControl only commands the scooter's motor to work. 
+
+MotorControl commands the scooter's motor to work and includes ability to read messages from scooter's motor controller including the battery level, odometer, velocity, etc. 
+
+Firmware.ino is (likely) the latest version that I am using, which contains a gps class and a backgroundProcesses class that preforms many commands.  
 
 # Project Information
 
