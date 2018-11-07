@@ -1,5 +1,5 @@
 # Project Goal
-The goal of this project is to simulate/imitate data communication between the BLE Controller and the motor controller on the Xiaomi M365 Scooter with a microcontroller with cellular capabilities, the Particle Electron.
+The goal of this project is to simulate/imitate data communication between the BLE Controller and the motor controller on the Xiaomi M365 Scooter with a microcontroller with cellular capabilities, the Particle Electron. BasicMotorControl only commands the scooter's motor to work. MotorControl commands the scooter's motor to work and includes ability to read messages from scooter's motor controller including the battery level, odometer, velocity, etc. Firmware.ino is (likely) the latest version that I am using, which contains a gps class and a backgroundProcesses class that preforms many commands.  
 
 # Project Information
 
@@ -15,15 +15,17 @@ Sucess:
 Work in Progress/Future Work:
 - Add option for eco mode (probably not going to implement).
 - Add energy recovery commands (probably not going to implement).
+- Currently experiencing some problems when locking the scooter on firmware.ino. Sometimes when the scooter is locked and the alarm will always be active (the wheel will not stop vibrating). My current solution is to unlock the scooter, power the scooter's motor controller off and back on again, however this is only a temporary solution.
+- I am currently working on using a bitwise shift operator (>> or <<) and multiple XOR operations (0x00FF & 0xFF00) to avoid using the hexstring class in my program. 
 
 Hardware Implementation
 - To ensure continuous power:
   - Connect the data line to the Particle Electron's TX pin.
   - Connect the 5V power line to the Particle Electron's VIN pin, Brake, and Throttle.
-  - Connect the ground line to both the Particle Electron's ground pin and to a transistor (I use a 2N2222A transistor).
+  - Connect the ground line to both the Particle Electron's ground pin and to a transistor (I use a 2N2222 transistor).
   - Connect the 40V hot line to the transistor.
   - Connect a wire to the transistor and D0 (when this wire is pulled high, the tranisitor (if properly wired) will connect the 40V hot line turning on the scooter. 
-  - This is necessary as the scooter will automatically turn off after 5 minutes when unlocked. If the scooter does not supply power continuously, the Particle Electron's battery could die, which would not be good for locating it when lost.
+  - This is necessary as the scooter will automatically turn off after 5 minutes when unlocked. I believe the scooter also automatically turns off when lock, although it takes hours for this to happen. If the scooter does not supply power continuously, the Particle Electron's battery could die, which would not be good for locating it when lost.
 - For data communication only:
   - Connect the data line to the Particle Electron's TX pin.
   - Connect the ground line to the Particle Electron's ground pin.
@@ -32,13 +34,19 @@ Hardware Implementation
   - Connect ground wires to ground.
   - Connect hot wires to motor controller's 5V line.
   - Connect brake wire to motor controller's 5V line.
-  - Connect throttle wire to Particle Electron's A4 pin.
-
+  - Connect brake and throttle wire to Particle Electron's A3 and A4 pins (check the comments in the program to see which one is correct).
+- Headlight Connection:
+  - Connect headlight wires to a buck converter (5V to 6.2V).
+  - Connect buck converter's hot line to transistor (I use the 2n2222 transistor again).
+  - Connect buck converter's ground to ground.
+  - Connect the transistor to 5V power supply and D1 pin to switch headlight on and off.
+- Note: When attempting to turn the scooter's motor controller off it is important to not have the Particle Electron powered via USB. It seems that the USB power will keep the scooter's motor controller on. (It took me forever to figure this out as I usually flash the device and use the USB serial monitor to track the program's failures.)
+  
 # How the Xiaomi M365 Operates:
 - The scooter is composed of 3 microcontrollers: the Bluetooth (BLE) controller, the motor controller, and the battery management system (BMS) controller.
   - The BLE Controller:
     - Can send single commands to the motor controller (tail light on/off, cruise control on/off, lock/unlock),
-    - Continuously sends values of the brake and throttle levers,
+    - Continuously sends values of the brake and throttle levers (even when the scooter is locked),
     - Turns the power to the scooter on by touching ground and 40V hot to each other for less than a second, 
     - Turns on the headlight led and tail light led by touching ground and 40V hot to each other for less than a second after powered on, and
     - Is connected to motor controller by four wires (ground [black], data [yellow], and two hot lines: 5V [red] & 40V [green]), and
@@ -60,7 +68,7 @@ Hardware Implementation
   - T is the message type: 0x01 = Read, and 0x03 = Write (Some messages use 0x64 & 0x65).
   - C is the command type (e.g. lock, unlock, information, etc.).
   - ... is the message which varies in size.
-  - Ck0 and Ck1 are the checksum values to confirm the integrity of the message: to calculate this value we add all of the previous bytes together except 0x55 and 0xAA. We then take this sum and preform an XOR operation (^) with the sum and 0xFFFF. The result of this calculation contains Ck1 and Ck0, respectively. To reverse the order, I convert the result into a string and use substring. The resulting Ck0 and Ck1 strings are then converted back to HEX.
+  - Ck0 and Ck1 are the checksum values to confirm the integrity of the message: to calculate this value we add all of the previous bytes together except 0x55 and 0xAA. We then take this sum and preform an XOR operation (^) with the sum and 0xFFFF. The result of this calculation contains Ck1 and Ck0, respectively. To reverse the order, I convert the result into a string and use substring. The resulting Ck0 and Ck1 strings are then converted back to HEX. 
   - Source of Communication Protocol Information: https://github.com/CamiAlfa/M365-BLE-PROTOCOL/blob/master/protocolo
   
 # Message Information:
