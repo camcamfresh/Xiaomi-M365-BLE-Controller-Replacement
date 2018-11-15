@@ -400,17 +400,6 @@ void gpsProcess(){
             if(fix.valid.location){
                 gpsUrl = "https://maps.google.com/?q=" + String(fix.latitude(), 6) + "," + String(fix.longitude(), 6);
                 gpsValid = "V";
-                if((String(fix.latitude()).startsWith("**.***") || String(fix.latitude()).startsWith("**.***")) && String(fix.longitude()).startsWith("-97.727")){
-                    headPowerCommand = 0;
-                }
-                else if(lockCommand == 0){
-                    ledPowerCommand = 1;
-                    digitalWrite(D6, HIGH);
-                }
-                else{
-                    ledPowerCommand = 1;
-                    digitalWrite(D6, LOW);
-                }
             }
             else{
                 gpsValid = "I";
