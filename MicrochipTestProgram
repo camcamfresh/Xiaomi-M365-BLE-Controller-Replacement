@@ -2,7 +2,7 @@
 //If the test is sucessful the tail light should be solid and the motor controller should not be blinking.
 //If the motor controller and tail light blinks once every second or so, then there is no data connnection.
 //If the motor controller is on and the tail light is completely off, then try the unlock and tailon command.
-//If that does not work, then the 40V and ground maybe shorted (e.g., the tranistor is setup incorrectly).
+//If the motor controller is still on and the tail light is off (it may light up very faintly for a small amount of time), then the 40V and ground maybe shorted (e.g., the tranistor is setup incorrectly).
 //To test your throttle and brake connections erase '0x26;' and uncomment the analogRead.
 //If there is no brake connection, then the motor controller and tail light will blink three times every second or so.
 //The throttle must be physically tested (make sure the front wheel is at a fast enough speed).
