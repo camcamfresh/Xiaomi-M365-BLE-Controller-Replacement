@@ -1,0 +1,135 @@
+//This program test your microchips connection to the scooter. 
+//If the test is sucessful the tail light should be solid and the motor controller should not be blinking.
+//If the motor controller and tail light blinks once every second or so, then there is no data connnection.
+//If the motor controller is on and the tail light is completely off, then try the unlock and tailon command.
+//If that does not work, then the 40V and ground maybe shorted (e.g., the tranistor is setup incorrectly).
+//To test your throttle and brake connections erase '0x26;' and uncomment the analogRead.
+//If there is no brake connection, then the motor controller and tail light will blink three times every second or so.
+//The throttle must be physically tested (make sure the front wheel is at a fast enough speed).
+
+void setup() {
+    Serial1.begin(115200);
+    Serial1.halfduplex(true);
+
+    Particle.function("CloudCommand", cloudCommand);
+
+    pinMode(A0, INPUT); //Brake Lever Sensor
+    pinMode(A1, INPUT); //Motor Throttle Sensor
+
+}
+void loop() {
+    esccontrol();
+}
+void esccontrol(){
+    unsigned char motor[] = {0x55, 0xAA, 0x7, 0x20, 0x65, 0x0, 0x4, 0x26, 0x26, 0x0, 0x0, 0x0, 0x0};
+    unsigned char motor1[] = {0x55, 0xAA, 0x9, 0x20, 0x64, 0x0, 0x6, 0x26, 0x26, 0x0, 0x0, 0x72, 0x0, 0x0, 0x0};
+    unsigned char inforequest[] = {0x55, 0xAA, 0x6, 0x20, 0x61, 0xB0, 0x20, 0x02, 0x28, 0x26, 0x58, 0xFE};
+    
+    int control = 0x26; //analogRead(A0);
+    char brake = map(control, 685, 4095, 0x26, 0xC2);
+    motor[8] = brake; 
+    motor1[8] = brake;
+    
+    int value = 0x26; //analogRead(A0);
+    char speed = map(value, 685, 4095, 0x26, 0xC2);
+    motor[7] = speed;
+    motor1[7] = speed;
+    
+    inforequest[8] = speed;
+    inforequest[9] = brake;
+    
+    uint16_t calc =  (motor[2] + motor[3] + motor[4] + motor[5] + motor[6] + motor[7] + motor[8] + motor[9] + motor[10]) ^ 0xFFFF;
+    char ck1 = hexstring(String(calc, HEX).substring(2,4));
+    char ck2 = hexstring(String(calc, HEX).substring(0,2));
+    motor[11] = ck1;
+    motor[12] = ck2;
+    
+    uint16_t calc1 = (motor1[2] + motor1[3] + motor1[4] + motor1[5] + motor1[6] + motor1[7] + motor1[8] + motor1[9] + motor1[10] + motor1[11] + motor1[12]) ^ 0xFFFF;
+    char ck3 = hexstring(String(calc1, HEX).substring(2,4));
+    char ck4 = hexstring(String(calc1, HEX).substring(0,2));
+    motor1[13] = ck3;
+    motor1[14] = ck4;
+
+    Serial1.write(motor, sizeof(motor)); delay(10);
+    Serial1.write(motor, sizeof(motor)); delay(10);
+    Serial1.write(motor, sizeof(motor)); delay(10);
+    Serial1.write(motor, sizeof(motor)); delay(10);
+    Serial1.write(motor1, sizeof(motor1)); delay(10);
+    
+}
+char hexstring(String checkSum){
+    char hex = 0;
+    if(checkSum.length() == 2){
+        if(checkSum.charAt(0) == '1') hex = 0x10;
+            else if(checkSum.charAt(0) == '2') hex = 0x20;
+            else if(checkSum.charAt(0) == '3') hex = 0x30;
+            else if(checkSum.charAt(0) == '4') hex = 0x40;
+            else if(checkSum.charAt(0) == '5') hex = 0x50;
+            else if(checkSum.charAt(0) == '6') hex = 0x60;
+            else if(checkSum.charAt(0) == '7') hex = 0x70;
+            else if(checkSum.charAt(0) == '8') hex = 0x80;
+            else if(checkSum.charAt(0) == '9') hex = 0x90;
+            else if(checkSum.charAt(0) == 'a') hex = 0xA0;
+            else if(checkSum.charAt(0) == 'b') hex = 0xB0;
+            else if(checkSum.charAt(0) == 'c') hex = 0xC0;
+            else if(checkSum.charAt(0) == 'd') hex = 0xD0;
+            else if(checkSum.charAt(0) == 'e') hex = 0xE0;
+            else if(checkSum.charAt(0) == 'f') hex = 0xF0;
+        if(checkSum[1] == '0') hex = 0x0 + hex;
+            else if(checkSum.charAt(1) == '1') hex = 0x1 + hex;
+            else if(checkSum.charAt(1) == '2') hex = 0x2 + hex;
+            else if(checkSum.charAt(1) == '3') hex = 0x3 + hex;
+            else if(checkSum.charAt(1) == '4') hex = 0x4 + hex;
+            else if(checkSum.charAt(1) == '5') hex = 0x5 + hex;
+            else if(checkSum.charAt(1) == '6') hex = 0x6 + hex;
+            else if(checkSum.charAt(1) == '7') hex = 0x7 + hex;
+            else if(checkSum.charAt(1) == '8') hex = 0x8 + hex;
+            else if(checkSum.charAt(1) == '9') hex = 0x9 + hex;
+            else if(checkSum.charAt(1) == 'a') hex = 0xA + hex;
+            else if(checkSum.charAt(1) == 'b') hex = 0xB + hex;
+            else if(checkSum.charAt(1) == 'c') hex = 0xC + hex;
+            else if(checkSum.charAt(1) == 'd') hex = 0xD + hex;
+            else if(checkSum.charAt(1) == 'e') hex = 0xE + hex;
+            else if(checkSum.charAt(1) == 'f') hex = 0xF + hex;
+    }
+    if(checkSum.length() == 1){
+        if(checkSum.charAt(0) == '0') hex = 0x0;
+            else if(checkSum.charAt(0) == '1') hex = 0x1;
+            else if(checkSum.charAt(0) == '2') hex = 0x2;
+            else if(checkSum.charAt(0) == '3') hex = 0x3;
+            else if(checkSum.charAt(0) == '4') hex = 0x4;
+            else if(checkSum.charAt(0) == '5') hex = 0x5;
+            else if(checkSum.charAt(0) == '6') hex = 0x6;
+            else if(checkSum.charAt(0) == '7') hex = 0x7;
+            else if(checkSum.charAt(0) == '8') hex = 0x8;
+            else if(checkSum.charAt(0) == '9') hex = 0x9;
+            else if(checkSum.charAt(0) == 'a') hex = 0xA;
+            else if(checkSum.charAt(0) == 'b') hex = 0xB;
+            else if(checkSum.charAt(0) == 'c') hex = 0xC;
+            else if(checkSum.charAt(0) == 'd') hex = 0xD;
+            else if(checkSum.charAt(0) == 'e') hex = 0xE;
+            else if(checkSum.charAt(0) == 'f') hex = 0xF;
+    }
+    return hex;
+}
+int cloudCommand(String command){
+    unsigned char lock [] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x70, 0x1, 0x0, 0x67, 0xFF};
+    unsigned char unlock[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x71, 0x1, 0x0, 0x66, 0xFF};
+    unsigned char tailon[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x2, 0x0, 0x59, 0xFF};
+    unsigned char tailoff[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x0, 0x0, 0x5B, 0xFF};
+    unsigned char cruiseon[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x1, 0x0, 0x5B, 0xFF};
+    unsigned char cruiseoff[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x0, 0x0, 0x5C, 0xFF};
+    
+    if(command == "unlock"){
+        Serial1.write(unlock, sizeof(unlock));
+        return 0;
+    }
+    else if(command == "lock"){
+        Serial1.write(lock, sizeof(lock));
+        return 1;
+    }
+    else if(command == "tailon){
+        Serial1.write(tailon, sizeof(tailon);
+        return 2;
+    }
+}
