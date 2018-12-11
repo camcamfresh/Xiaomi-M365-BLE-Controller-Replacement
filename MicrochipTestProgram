@@ -7,6 +7,7 @@
 //If there is no brake connection, then the motor controller and tail light will blink three times every second or so.
 //The throttle must be physically tested (make sure the front wheel is at a fast enough speed).
 
+SYSTEM_THREAD(ENABLED);
 void setup() {
     Serial1.begin(115200);
     Serial1.halfduplex(true);
