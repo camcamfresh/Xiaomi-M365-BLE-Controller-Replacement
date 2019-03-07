@@ -5,7 +5,13 @@ BasicMotorControl only commands the scooter's motor to work.
 
 MotorControl commands the scooter's motor to work and includes ability to read messages from scooter's motor controller including the battery level, odometer, velocity, etc. It can also read the X1 structure which includes beep request from the motor controller (e.g.  when the scooter's alarm is active and needs to beep).
 
-Firmware.ino is (likely) the latest version that I am using, which contains a gps class and a backgroundProcesses class that preforms many commands.  
+Firmware.ino is (likely) the last version I will publish, which contains a gps class and a backgroundProcesses class that preforms many commands.
+
+Around May or April, I will start selling replacement circuit boards on eBay that are compataible with an Android app I am creating (iOS in future). The circuit board will include all of the necessary hardware for the replacement microconroller (GPS, transistorss, resistors, etc) probably WITHOUT the Particle device. 
+
+The idea is to purchase a circuit board, Particle device, and download the app. Once the app is downloaded, one should login to their Particle account, select their device and will then have the option to flash the current firmware version from the app. I don't think I will publish this version on Github since I spent so much time perfecting it. Although once the app is up and running, anyone should be able to use the app (and firmware) given that they update their own wiring. 
+
+The new firmware imitates the messaging times of the orignal board, includes updates to the throttle and brake sensors, provides connection statuses to the cloud (brake, throttle, M365, GPS), publishes M365 statistics, alarm alerts and GPS locations to the cloud, and will monitor the Particle device's connection to the cloud (ensuring responsivness under low signal conditions).
 
 # Project Information
 
