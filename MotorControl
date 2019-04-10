@@ -157,16 +157,15 @@ void escReader(){
                 break;
             case 3:
                 reciever[messageindex] = data;
-                calc += data;
                 messageindex++;
-                if(messageindex == messagelength) recieverindex++;
+                if(messageindex <= reciever[2] + 4) calc += data;
+                if(messageindex == reciever[2] + 6) recieverindex++;
                 break;
             case 4:
-                reciever[messageindex] = data;
-                calc += data;
                 calc ^= 0xFFFF;
-                if(calc == (reciever[messagelength - 1] + reciever[messagelength])) recieverindex++;
-                    else recieverindex = 10;
+                if(calc == (reciever[reciever[2] + 4] + (reciever[reciever[2] + 5] << 8))) recieverindex++;
+                else recieverindex = 10;
+                break;
             case 5:
                 switch(reciever[3]){
                     case 0x21:
