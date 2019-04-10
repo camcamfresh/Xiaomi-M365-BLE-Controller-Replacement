@@ -160,11 +160,12 @@ void escReader(){
                 messageindex++;
                 if(messageindex <= reciever[2] + 4) calc += data;
                 if(messageindex == reciever[2] + 6) recieverindex++;
+                if(reciever[3] == 0x20) recieverindex = 10;
                 break;
             case 4:
                 calc ^= 0xFFFF;
                 if(calc == (reciever[reciever[2] + 4] + (reciever[reciever[2] + 5] << 8))) recieverindex++;
-                else recieverindex = 10;
+                else readerIndex = 10;
                 break;
             case 5:
                 switch(reciever[3]){
