@@ -171,10 +171,11 @@ void escReader(){
                 calc = data;
                 break;
             case 3:
-                receiver[dataIndex] = data;
-                dataIndex++;
-                if(dataIndex <= receiver[2] + 4) calc += data;
-                if(dataIndex == receiver[2] + 6) receiverIndex++;
+                receiver[receiverMessageIndex] = data;
+                receiverMessageIndex++;
+                if(receiverMessageIndex <= receiver[2] + 4) calc += data;
+                if(receiverMessageIndex == receiver[2] + 6) receiverIndex++;
+                if(receiver[3] == 0x20) receiverIndex = 10; //Message that we sent.
                 break;
             case 4:
                 calc ^= 0xFFFF;
