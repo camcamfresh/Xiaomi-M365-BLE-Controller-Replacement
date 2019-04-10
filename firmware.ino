@@ -171,17 +171,16 @@ void escReader(){
                 calc = data;
                 break;
             case 3:
-                receiver[receiverMessageIndex] = data;
-                calc += data;
-                receiverMessageIndex++;
-                if(receiverMessageIndex == receiverMessageLength) receiverIndex++;
+                receiver[dataIndex] = data;
+                dataIndex++;
+                if(dataIndex <= receiver[2] + 4) calc += data;
+                if(dataIndex == receiver[2] + 6) receiverIndex++;
                 break;
             case 4:
-                receiver[receiverMessageIndex] = data;
-                calc += data;
                 calc ^= 0xFFFF;
-                if(calc == (receiver[receiverMessageLength - 1] + receiver[receiverMessageLength])) receiverIndex++;
-                    else receiverIndex = 10;
+                if(calc == (receiver[receiver[2] + 4] + (receiver[receiver[2] + 5] << 8))) receiverIndex++;
+                else receiverIndex = 10;
+                break;
             case 5: //Separates packets by address.
                 switch(receiver[3]){
                     case 0x21:
