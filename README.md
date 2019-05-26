@@ -5,13 +5,7 @@ BasicMotorControl only commands the scooter's motor to work.
 
 MotorControl commands the scooter's motor to work and includes ability to read messages from scooter's motor controller including the battery level, odometer, velocity, etc. It can also read the X1 structure which includes beep request from the motor controller (e.g.  when the scooter's alarm is active and needs to beep).
 
-Firmware.ino is (likely) the last version I will publish, which contains a gps class and a backgroundProcesses class that preforms many commands.
-
-Around May or April, I will start selling replacement circuit boards on eBay that are compataible with an Android app I am creating (iOS in future). The circuit board will include all of the necessary hardware for the replacement microconroller (GPS, transistorss, resistors, etc) probably WITHOUT the Particle device. 
-
-The idea is to purchase a circuit board, Particle device, and download the app. Once the app is downloaded, one should login to their Particle account, select their device and will then have the option to flash the current firmware version from the app. I don't think I will publish this version on Github since I spent so much time perfecting it. Although once the app is up and running, anyone should be able to use the app (and firmware) given that they update their own wiring. 
-
-The new firmware imitates the messaging times of the orignal board, includes updates to the throttle and brake sensors, provides connection statuses to the cloud (brake, throttle, M365, GPS), publishes M365 statistics, alarm alerts and GPS locations to the cloud, and will monitor the Particle device's connection to the cloud (ensuring responsivness under low signal conditions).
+Firmware.ino is the last version I have published, which contains a gps class and a backgroundProcesses class that preforms many commands.
 
 # Project Information
 
@@ -28,12 +22,11 @@ Work in Progress/Future Work:
 - Add option for eco mode (probably not going to implement).
 - Add energy recovery commands (probably not going to implement).
 - Currently experiencing some problems when locking the scooter on firmware.ino. Sometimes when the scooter is locked and the alarm will always be active (the wheel will not stop vibrating). My current solution is to unlock the scooter, power the scooter's motor controller off and back on again, however this is only a temporary solution.
-- I am currently working on using a bitwise shift operator (>> or <<) and multiple XOR operations (0x00FF & 0xFF00) to avoid using the hexstring class in my program. 
 
 Hardware Implementation
 - To ensure continuous power:
   - Connect the data line to the Particle Electron's TX pin.
-  - Connect the 5V power line to the Particle Electron's VIN pin, Brake, and Throttle.
+  - Connect the 5V power line to the Particle Electron's VIN pin, Brake, Throttle.
   - Connect the ground line to both the Particle Electron's ground pin and to a transistor (I use a 2N2222 transistor).
   - Connect the 40V hot line to the transistor.
   - Connect a wire to the transistor and D0 (when this wire is pulled high, the tranisitor (if properly wired) will connect the 40V hot line turning on the scooter. 
@@ -46,13 +39,15 @@ Hardware Implementation
   - Connect ground wires to ground.
   - Connect hot wires to motor controller's 5V line.
   - Connect brake wire to motor controller's 5V line.
-  - Connect brake and throttle wire to Particle Electron's A3 and A4 pins (check the comments in the program to see which one is correct).
+  - Connect brake and throttle input wires to 1.6K resistors. 
+  - Connect the other end of the 1.6K resistor to the respective analog pin (A4/A5).
+  - Connect 3.3K resistors to the brake and throttle, connect the other end of the resistor to ground.
 - Headlight Connection:
-  - Connect headlight wires to a buck converter (5V to 6.2V).
-  - Connect buck converter's hot line to transistor (I use the 2n2222 transistor again).
-  - Connect buck converter's ground to ground.
-  - Connect the transistor to 5V power supply and D1 pin to switch headlight on and off.
-- Note: When attempting to turn the scooter's motor controller off it is important to not have the Particle Electron powered via USB. It seems that the USB power will keep the scooter's motor controller on. (It took me forever to figure this out as I usually flash the device and use the USB serial monitor to track the program's failures.)
+  - Connect headlight wires to a boost converter output (5V to 6.2V).
+  - Connect boost converter's negative voltage input to transistor (I use the 2n2222 transistor again).
+  - Connect boost converter's positive voltage input to 5V line.
+  - Connect transistor to D6 on Particle Electron and ground.
+- Note: When attempting to turn the scooter's motor controller off it is important to not have the Particle Electron powered via USB. It seems that the USB power will keep the scooter's motor controller on.
   
 # How the Xiaomi M365 Operates:
 - The scooter is composed of 3 microcontrollers: the Bluetooth (BLE) controller, the motor controller, and the battery management system (BMS) controller.
