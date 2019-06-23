@@ -128,12 +128,7 @@ bool M365::check(const char * message, int size){
     
     if(cksm == message[size - 2] + (message[size - 1] << 8)){
         if(message[1] == 0x20) return false;
-        lastValidMessageTimeStamp = millis();
-        
-        for(int i = 0; i < size; i++){ //DEBUG PARAGRAPH
-            Serial.print(message[i], HEX); Serial.print(" ");
-        } Serial.println();
-        
+        lastValidMessageTimeStamp = millis();        
         return true;
     }
     return false;
@@ -233,7 +228,7 @@ void M365::compare(){
         }
         
         //Process Headlight Status when 0 (usually indicates error state).
-        else if(!stats.led){
+        else if(!stats.led && stats.battery > 20){
             digitalWrite(input.power, HIGH);
             delay(100);
             digitalWrite(input.power, LOW);
