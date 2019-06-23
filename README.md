@@ -38,7 +38,7 @@ The goal of this project is to make a replacement board for the Xiaomi M365’s 
   - Connect Particle Electron's C1 Pin to Neo-GPS RX Pin
 
 # M365 Library Setup for Particle Electron
-- The M365 Library handles all communication between the Particle Electron and Xiaomi M365 Scooter. 
+- The M365 Library handles all communication between the Particle Electron and Xiaomi M365 Scooter. It is available through Particle's Community Libraries.
   - In order to use the library, one must instantiate a M365 object, specify the serial port and analog/digital pins in setup(), and call the process() method whenever serial data is available. 
   - The following methods are used for setup:
     - setup(Serial1, "brakePin", "throttlePin", "buzzerPin", "rled", "gled", "bled", "headlightPin", powerPin);
