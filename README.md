@@ -2,9 +2,9 @@
 The goal of this project is to make a replacement board for the Xiaomi M365’s Bluetooth (BLE) Controller. The replacement board will use a Particle Electron with a Neo-GPS to remotely control & locate the scooter.
 
 # Project Statuses
--Work In Progress:
+- Work In Progress:
   - Create custom iOS & Android apps to control the scooter.
--Successes:
+- Successes:
   - Can transmit messages to scooter, including commands.
   - Can receive messages from the scooter.
   - Can locate via Neo-GPS Module
