@@ -1,7 +1,7 @@
 # Project Goal
 The goal of this project is to make a replacement board for the Xiaomi M365’s Bluetooth (BLE) Controller. The replacement board will use a Particle Electron with a Neo-GPS to remotely control & locate the scooter.
 
-#Project Statuses
+# Project Statuses
 -Work In Progress:
   - Create custom iOS & Android apps to control the scooter.
 -Successes:
@@ -11,7 +11,7 @@ The goal of this project is to make a replacement board for the Xiaomi M365’s 
   - Can toggle scooter’s power button.
   - Can activate headlight with use of boost converter (5V to 6V).
 
-#Hardware Setup for Particle Electron
+# Hardware Setup for Particle Electron
 - Remove factory BLE controller and make the following connections to the wires:
   - Connect Particle Electron's GND Pin to Ground.
   - Connect Particle Electron's TX Pin to Data Line (~2.7V)
@@ -37,7 +37,7 @@ The goal of this project is to make a replacement board for the Xiaomi M365’s 
   - Connect Particle Electron's C0 Pin to Neo-GPS TX Pin
   - Connect Particle Electron's C1 Pin to Neo-GPS RX Pin
 
-#M365 Library Setup for Particle Electron
+# M365 Library Setup for Particle Electron
 - The M365 Library handles all communication between the Particle Electron and Xiaomi M365 Scooter. 
   - In order to use the library, one must instantiate a M365 object, specify the serial port and analog/digital pins in setup(), and call the process() method whenever serial data is available. 
   - The following methods are used for setup:
@@ -51,7 +51,7 @@ The goal of this project is to make a replacement board for the Xiaomi M365’s 
   - The M365 Library provides two structures for interacting with the M365 object: stats_t & command_t. In order to get/set the stats/commands, one must pass a reference of a preexisting stats_t or commands_t structure to the getStats() & setCommand() methods. (e.g. getStats(&exampleStats); ).
   - Check the basic_usage.ino for example.
 
-#Xiaomi M365 Operation Basics
+# Xiaomi M365 Operation Basics
 - The scooter is composed of 3 microcontrollers. All three microcontrollers communicate on a shared UART half-duplex serial line (115200bps, 8 data bits, no parity bit, one stop bit (8n1).
   - The Bluetooth (BLE) Controller
     - connects to the motor controller by four wires (GND, DATA, 5V, & ~40V),
@@ -72,7 +72,7 @@ The goal of this project is to make a replacement board for the Xiaomi M365’s 
     - monitors individual battery cells and keeps batteries in healthy condition, and
 	- can send statistics upon request such as overall & individual cell levels, temperatures, etc.
   
-#M365 Packet Protocol
+# M365 Packet Protocol
 - All three of the scooter's microcontrollers communicate on the same data wire.
 - The BLE microcontroller sends messages every 20 ms; the other controllers reply within 1-2 ms.
 - Each packet varies in size and destination. A single packet looks like this in HEX:
