@@ -54,8 +54,8 @@ void M365::getStats(stats_t * oldStats){
 
 void M365::send(){
     static uint8_t messageType = 0;
-    unsigned char brake = getBrake();
-    unsigned char speed = getThrottle();
+    uint8_t brake = getBrake();
+    uint8_t speed = getThrottle();
     
     if(!isConnected()) messageType = 4;
 
@@ -64,33 +64,33 @@ void M365::send(){
         case 1:
         case 2:
         case 3:{
-            unsigned char message[] = {0x55, 0xAA, 0x7, 0x20, 0x65, 0x0, 0x4, speed, brake, 0x0, stats.beep, 0x0, 0x0};
+            uint8_t message[] = {0x55, 0xAA, 0x7, 0x20, 0x65, 0x0, 0x4, speed, brake, 0x0, stats.beep, 0x0, 0x0};
             addSum(message, sizeof(message));
             transmit(message, sizeof(message));
             if(stats.beep) stats.beep = 0;
             break;
         }
         case 4:{
-            unsigned char message[] = {0x55, 0xAA, 0x9, 0x20, 0x64, 0x0, 0x6, speed, brake, 0x0, stats.beep, 0x72, 0x0, 0x0, 0x0};
+            uint8_t message[] = {0x55, 0xAA, 0x9, 0x20, 0x64, 0x0, 0x6, speed, brake, 0x0, stats.beep, 0x72, 0x0, 0x0, 0x0};
             addSum(message, sizeof(message));
             transmit(message, sizeof(message), true);
             if(stats.beep) stats.beep = 0;
             break;
         }
         case 5:{
-            unsigned char message[] = {0x55, 0xAA, 0x6, 0x20, 0x61, 0xB0, 0x20, 0x02, speed, brake, 0x0, 0x0};
+            uint8_t message[] = {0x55, 0xAA, 0x6, 0x20, 0x61, 0xB0, 0x20, 0x02, speed, brake, 0x0, 0x0};
             addSum(message, sizeof(message));
             transmit(message, sizeof(message));
             break;
         }
         case 6:{
-            unsigned char message[] = {0x55, 0xAA, 0x6, 0x20, 0x61, 0x7B, 0x4, 0x2, speed, brake, 0x0, 0x0};
+            uint8_t message[] = {0x55, 0xAA, 0x6, 0x20, 0x61, 0x7B, 0x4, 0x2, speed, brake, 0x0, 0x0};
             addSum(message, sizeof(message));
             transmit(message, sizeof(message));
             break;
         }
         case 7:{
-            unsigned char message[] = {0x55, 0xAA, 0x6, 0x20, 0x61, 0x7D, 0x2, 0x2, speed, brake, 0x0, 0x0};
+            uint8_t message[] = {0x55, 0xAA, 0x6, 0x20, 0x61, 0x7D, 0x2, 0x2, speed, brake, 0x0, 0x0};
             addSum(message, sizeof(message));
             transmit(message, sizeof(message));
             messageType = 0;
@@ -98,21 +98,21 @@ void M365::send(){
         }
     }
 }
-void M365::addSum(unsigned char * message, int size){
+void M365::addSum(uint8_t * message, uint8_t size){
     unsigned long cksm = 0;
     for(int i = 2; i < size - 2; i++) cksm += message[i];
     cksm ^= 0xFFFF;
-    message[size - 2] = (unsigned char)(cksm&0xFF);
-    message[size - 1] = (unsigned char)((cksm&0xFF00) >> 8);
+    message[size - 2] = (uint8_t)(cksm&0xFF);
+    message[size - 1] = (uint8_t)((cksm&0xFF00) >> 8);
 }
-void M365::transmit(const unsigned char * message, int size, bool override){
+void M365::transmit(const uint8_t * message, uint8_t size, bool override){
     if(isConnected() || override){
         serial->write(message, size);
         serial->flush();
     }
 }
 
-void M365::read(char current_byte){
+void M365::read(uint8_t current_byte){
     serialBuffer[serialIndex] = current_byte;
         
     if(serialIndex && serialBuffer[serialIndex - 1] == 0x55 && serialBuffer[serialIndex] == 0xAA){
@@ -121,7 +121,7 @@ void M365::read(char current_byte){
     }
     else serialIndex > 255 ? serialIndex = 0 : serialIndex++;
 }
-bool M365::check(const char * message, int size){
+bool M365::check(const uint8_t * message, uint8_t size){
     unsigned long cksm = 0;
     for(int i = 0; i < size - 2; i++) cksm += message[i];
     cksm ^= 0xFFFF;
@@ -133,7 +133,7 @@ bool M365::check(const char * message, int size){
     }
     return false;
 }
-void M365::translate(const char * message, int size){
+void M365::translate(const uint8_t * message, uint8_t size){
     switch(message[1]){
         case 0x21:
             switch(message[2]){
@@ -228,7 +228,7 @@ void M365::compare(){
         }
         
         //Process Headlight Status when 0 (usually indicates error state).
-        else if(!stats.led && stats.battery > 20){
+        else if(!stats.led && stats.battery > 30){
             digitalWrite(input.power, HIGH);
             delay(100);
             digitalWrite(input.power, LOW);
@@ -250,63 +250,63 @@ void M365::compare(){
     
     //Process Cruise Change
     if(!command.cruise && stats.cruise){
-        unsigned char message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x0, 0x0, 0x5C, 0xFF};
+        uint8_t message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x0, 0x0, 0x5C, 0xFF};
         transmit(message, sizeof(message));
     }
     else if(command.cruise && !stats.cruise){
-        unsigned char message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x1, 0x0, 0x5B, 0xFF};
+        uint8_t message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7C, 0x1, 0x0, 0x5B, 0xFF};
         transmit(message, sizeof(message));
     }
     
     //Process Tail Change
     if(stats.tail && !command.tail){
-        unsigned char message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x0, 0x0, 0x5B, 0xFF};
+        uint8_t message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x0, 0x0, 0x5B, 0xFF};
         transmit(message, sizeof(message));
     }
     else if(!stats.tail && command.tail){
-        unsigned char message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x2, 0x0, 0x59, 0xFF};
+        uint8_t message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7D, 0x2, 0x0, 0x59, 0xFF};
         transmit(message, sizeof(message));
     }
     
     //Process Eco Mode Change
     if(!stats.ecoMode){
         if(command.ecoMode == 1){
-            unsigned char message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7B, 0x01, 0x0, 0x5C, 0xFF};
+            uint8_t message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7B, 0x01, 0x0, 0x5C, 0xFF};
             transmit(message, sizeof(message));
         }
         else if(command.ecoMode == 2){
-            unsigned char message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7B, 0x02, 0x0, 0x5B, 0xFF};
+            uint8_t message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7B, 0x02, 0x0, 0x5B, 0xFF};
             transmit(message, sizeof(message));
         }
     }
     else if(stats.ecoMode == 1){
         if(!command.ecoMode){
-            unsigned char message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7B, 0x00, 0x0, 0x5D, 0xFF};
+            uint8_t message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7B, 0x00, 0x0, 0x5D, 0xFF};
             transmit(message, sizeof(message));
         }
         else if(command.ecoMode == 2){
-            unsigned char message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7B, 0x02, 0x0, 0x5B, 0xFF};
+            uint8_t message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7B, 0x02, 0x0, 0x5B, 0xFF};
             transmit(message, sizeof(message));
         }
     }
     else if(stats.ecoMode ==2){
         if(!command.ecoMode){
-            unsigned char message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7B, 0x00, 0x0, 0x5D, 0xFF};
+            uint8_t message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7B, 0x00, 0x0, 0x5D, 0xFF};
             transmit(message, sizeof(message));
         }
         else if(command.ecoMode == 1){
-            unsigned char message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7B, 0x01, 0x0, 0x5C, 0xFF};
+            uint8_t message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7B, 0x01, 0x0, 0x5C, 0xFF};
             transmit(message, sizeof(message));
         }
     }
     
     //Process Lock Change
     if(stats.lock && !command.lock){
-        unsigned char message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x71, 0x1, 0x0, 0x66, 0xFF};
+        uint8_t message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x71, 0x1, 0x0, 0x66, 0xFF};
         transmit(message, sizeof(message));
     }
     else if(!stats.lock && command.lock){
-        unsigned char message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x70, 0x1, 0x0, 0x67, 0xFF};
+        uint8_t message[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x70, 0x1, 0x0, 0x67, 0xFF};
         transmit(message, sizeof(message));
     }
 
@@ -329,19 +329,19 @@ bool M365::isConnected(){
     messageTimer->changePeriod(1000);
     return false;
 }
-int M365::setAnalogPin(int pin){
+uint8_t M365::setAnalogPin(uint8_t pin){
     if(pin > 0 && pin < 8){
         pinMode(pin, INPUT);
         return pin;
     }
 }
-int M365::setDigitalPin(int pin){
+uint8_t M365::setDigitalPin(uint8_t pin){
     if(pin > 0 && pin < 8){
         pinMode(pin, OUTPUT);
         return pin;
     }
 }
-unsigned char M365::getBrake(){
+uint8_t M365::getBrake(){
     uint16_t brake = analogRead(input.brake);
     if(!input.brake || brake < 15){
         stats.brakeConnected = 0;
@@ -356,7 +356,7 @@ unsigned char M365::getBrake(){
         return map(brake, input_stats.minBrake, input_stats.maxBrake, 0x26, 0xC2);
     }
 }
-unsigned char M365::getThrottle(){
+uint8_t M365::getThrottle(){
     uint16_t speed = analogRead(input.throttle);
     if(!input.throttle || speed < 15){
         stats.throttleConnected = 0;
@@ -371,4 +371,3 @@ unsigned char M365::getThrottle(){
         return map(speed, input_stats.minSpeed, input_stats.maxSpeed, 0x26, 0xC2);
     }
 }
-
