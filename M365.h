@@ -3,6 +3,7 @@
 
 #include "Particle.h"
 
+
 struct stats_t{
     uint8_t alarmStatus,
         averageVelocity,
@@ -40,7 +41,7 @@ struct command_t{
 class M365{
     private:
         USARTSerial * serial;
-        char serialBuffer[256], serialIndex = 0;
+        uint8_t serialBuffer[256], serialIndex = 0;
         Timer * messageTimer;
 
         stats_t stats;
@@ -65,20 +66,20 @@ class M365{
         unsigned long lastMessageSentTimeStamp = 0;
         unsigned long lastValidMessageTimeStamp = 0;
         
-        int setAnalogPin(const int);
-        int setDigitalPin(const int);
+        uint8_t setAnalogPin(const uint8_t);
+        uint8_t setDigitalPin(const uint8_t);
         bool isConnected();
-        unsigned char getBrake();
-        unsigned char getThrottle();
+        uint8_t getBrake();
+        uint8_t getThrottle();
         
-        void read(char);
-        bool check(const char * message, int size);
-        void translate(const char * message, int size);
+        void read(uint8_t);
+        bool check(const uint8_t * message, uint8_t size);
+        void translate(const uint8_t * message, uint8_t size);
         void compare();
         
         void send();
-        void addSum(unsigned char *, int);
-        void transmit(const unsigned char *, int, bool = false);
+        void addSum(uint8_t *, uint8_t);
+        void transmit(const uint8_t *, uint8_t, bool = false);
 
     public:
         M365();
