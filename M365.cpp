@@ -238,7 +238,7 @@ void M365::compare(){
     } 
     
     //Process Beep Request
-    if(stats.beep == 1) tone(input.buzzer, 20, 50);
+    if(stats.beep == 1 && !stats.alarmStatus) tone(input.buzzer, 20, 50);
     else if(stats.beep == 2){
         tone(input.buzzer, 20, 100);
         stats.beep = 1;
