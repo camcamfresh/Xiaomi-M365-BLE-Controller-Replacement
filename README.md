@@ -88,7 +88,7 @@ The goal of this project is to make a replacement board for the Xiaomi M365’s 
   - T is the message type: 0x01 = Read, and 0x03 = Write (Some messages use 0x64 & 0x65).
   - C is the command type: (e.g. lock, unlock, information, etc.).
   - ... is the message data which varies on packet.
-  - ck0 & ck1 are checksum values to confirm the integrity of the message. To calculate this value, we take the sum all of the previous bytes together except 0x55 & 0xAA. We then preform a XOR operation with 0xFFFF. The resultig value contains ck1 & ck0, respectively.
+  - ck0 & ck1 are checksum values to confirm the integrity of the message. To calculate this value, we take the sum all of the previous bytes together except 0x55 & 0xAA. We then preform a XOR operation with 0xFFFF. The resulting value contains ck1 & ck0, respectively.
   - Source of Communication Protocol Information: https://github.com/CamiAlfa/M365-BLE-PROTOCOL/blob/master/protocolo
   
 # Packet Information:
