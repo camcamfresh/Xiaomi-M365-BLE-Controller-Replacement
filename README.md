@@ -137,3 +137,6 @@ The goal of this project is to make a replacement board for the Xiaomi M365’s 
   - C is the cruise control setting: 0x0 = cruise control disabled, 0x01 = cruise control enabled (this does not mean cruies control is active).
   - This Information Structuer is a reply to: | 0x55 | 0xAA | 0x06 | 0x20 | 0x61 | 0x7B | 0x04 | 0x02 | T | B | Ck0 | Ck1 |
     
+If this project helped you, please consider donating below:
+
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=AXJQECU5XXVYL&currency_code=USD&source=url)
