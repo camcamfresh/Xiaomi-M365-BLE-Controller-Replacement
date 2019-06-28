@@ -320,7 +320,7 @@ bool M365::isConnected(){
         messageTimer->changePeriod(20);
         return true;
     }
-    else if(command.power){
+    else if(command.power && millis() - lastValidMessageTimeStamp > 3000){
         digitalWrite(input.power, HIGH);
         delay(100);
         digitalWrite(input.power, LOW);

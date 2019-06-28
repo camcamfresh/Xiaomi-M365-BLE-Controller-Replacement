@@ -130,13 +130,12 @@ The goal of this project is to make a replacement board for the Xiaomi M365’s 
 
 - Additional Information Structure:
   - Request: | 0x55 | 0xAA | 0x06 | 0x20 | 0x61 | 0x7B | 0x04 | 0x02 | T | B | ck0 | ck1 |
-  - T is the throttle value.
+    - T is the throttle value.
     - B is the brake value.
   - Response: | 0x55 | 0xAA | 0x06 | 0x23 | 0x01 | 0x7B | E | 0x0 | C | 0 | ck0 | Ck1 |
-  - E is the Engergy Recovery Strength: 0x0 = low, 0x01 = med, 0x02 = high.
-  - C is the cruise control setting: 0x0 = cruise control disabled, 0x01 = cruise control enabled (this does not mean cruies control is active).
-  - This Information Structuer is a reply to: | 0x55 | 0xAA | 0x06 | 0x20 | 0x61 | 0x7B | 0x04 | 0x02 | T | B | Ck0 | Ck1 |
+    - E is the Engergy Recovery Strength: 0x0 = low, 0x01 = med, 0x02 = high.
+    - C is the cruise control setting: 0x0 = cruise control disabled, 0x01 = cruise control enabled (this does not mean cruies control is active/on).
     
-If this project helped you, please consider donating below:
+# If this project helped you, please consider donating below:
 
 [![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=AXJQECU5XXVYL&currency_code=USD&source=url)
