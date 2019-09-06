@@ -3,11 +3,12 @@ The goal of this project is to make a replacement board for the Xiaomi M365’s 
 
 # Project Statuses
 - Work In Progress:
-  - Create custom iOS & Android apps to control the scooter.
+  - Improve existing code & eliminate potential blocking functions.
+  - Create custom iOS & Android apps to interact with Particle's REST API
 - Successes:
   - Can transmit messages to scooter, including commands.
-  - Can receive messages from the scooter.
-  - Can locate via Neo-GPS Module
+  - Can receive & parse messages from the scooter.
+  - Can locate via Neo-GPS Module.
   - Can toggle scooter’s power button.
   - Can activate headlight with use of boost converter (5V to 6V).
 
