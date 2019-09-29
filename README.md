@@ -93,8 +93,15 @@ The goal of this project is to make a replacement board for the Xiaomi M365’s 
   - Source of Communication Protocol Information: https://github.com/CamiAlfa/M365-BLE-PROTOCOL/blob/master/protocolo
   
 # Packet Information:
+- Default Message:
+  - Message: | 0x55 | 0xAA | 0x07 | 0x20 | 0x65 | 0x0 | 0x4 | T | B | S | ck0 | ck1 |
+    - T is the throttle value.
+    - B is the brake value.
+	- S is the beep confirmation value.
+  - No Message Response
 - The X1 Structure:
-  - Request: | 0x55 | 0xAA | 0x9 | 0x20 | 0x65 | 0x0 | 0x4 | T | B | S | ck0 | ck1 |
+  - Request: | 0x55 | 0xAA | 0x9 | 0x20 | 0x64 | L | 0x4 | T | B | S | ck0 | ck1 |
+	- L is the number of LED's the original controller should turn on.
     - T is the throttle value.
     - B is the brake value.
 	- S is the beep confirmation value.
@@ -127,7 +134,7 @@ The goal of this project is to make a replacement board for the Xiaomi M365’s 
     - array[23], [24], and [25] is the single millage reading in km*.
     - array[26], and [27] is the motor controls timer*.
     - array[28] is the temperature in C.
-    - *These values are calculated in HEX, where the first character in the array represents the one's place, the second character represents the ten's place, and, if applicable, the third character represents the hundreds place. Since the values are calculated in HEX, one must multiple the ten's place by 256 and the hundred's place by 256^2. For example, an odometer readeing of [0xC6, 0x4E, 0x02] would be the decimal equivelent of 151,238 (198[0xC6] + (78[0x4E] * 256) + (2[0x02] * 256 * 256)). In this example, the odometer reads 151.238 km. Note that we divided by 1000 to get the result in km, and this divisor will change for different unit types. For example, temperature (in C) is divided by 10 instead of 1000.
+    - *These values are stored in Big Endian format. The first character represents the one's place, the second character represents the ten's place, and, if applicable, the third character represents the hundreds place. Since the values are calculated in HEX, one must multiple the ten's place by 256 and the hundred's place by 256^2. For example, an odometer readeing of [0xC6, 0x4E, 0x02] would be the decimal equivelent of 151,238 (198[0xC6] + (78[0x4E] * 256) + (2[0x02] * 256 * 256)). In this example, the odometer reads 151.238 km. Note that we divided by 1000 to get the result in km, and this divisor will change for different unit types. For example, temperature (in C) is divided by 10 instead of 1000.
 
 - Additional Information Structure:
   - Request: | 0x55 | 0xAA | 0x06 | 0x20 | 0x61 | 0x7B | 0x04 | 0x02 | T | B | ck0 | ck1 |
@@ -135,7 +142,7 @@ The goal of this project is to make a replacement board for the Xiaomi M365’s 
     - B is the brake value.
   - Response: | 0x55 | 0xAA | 0x06 | 0x23 | 0x01 | 0x7B | E | 0x0 | C | 0 | ck0 | Ck1 |
     - E is the Engergy Recovery Strength: 0x0 = low, 0x01 = med, 0x02 = high.
-    - C is the cruise control setting: 0x0 = cruise control disabled, 0x01 = cruise control enabled (this does not mean cruies control is active/on).
+    - C is the cruise control setting: 0x0 = cruise control disabled, 0x01 = cruise control enabled (this does not mean cruise control is active/on).
     
 # If this project helped you, please consider donating below:
 

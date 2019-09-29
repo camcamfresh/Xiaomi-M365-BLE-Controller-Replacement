@@ -2,8 +2,8 @@
  * Project: M365 Connect
  * Description: Scooter Firmware
  * Board Version: 5
- * Author: Cameron Salazar
- * Date: March, 25, 2019
+ * Author: Cameron
+ * Date: March 25, 2019
  */
  
  //System Configuration
