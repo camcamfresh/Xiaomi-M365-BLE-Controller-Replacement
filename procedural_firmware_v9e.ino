@@ -74,7 +74,7 @@ Timer connectionTimer(5, connectionMonitor);
 Timer messageTimer(20, messageConstructor);
 Timer powerTimer(60000, powerCheck);
 
-retained int minBrake = 995, minSpeed = 995, maxBrake = 3000, maxSpeed = 3000;
+retained int minBrake = 1200, minSpeed = 1200, maxBrake = 1600, maxSpeed = 1600;
 unsigned long lastReceivedMessageTimeStamp = 0;
 retained String gpsLocation, gpsLink;
 int resetCommand = 0
@@ -90,6 +90,7 @@ void setup()
     
     Particle.variable("Version-v9e", "");
     Particle.variable("isConnected", isConnected);
+    Particle.variable("Battery", stats.battery);
     Particle.variable("gpsValid", gpsValid);
     Particle.variable("gpsLocation", gpsLocation);
     Particle.variable("gpsLink", gpsLink);
@@ -149,7 +150,7 @@ void connectionMonitor()
         {
             brakeConnected = 0;
             minBrake = 1200;
-            maxBrake = 3000;
+            maxBrake = 1600;
             lastBrakeDisconnectionTimeStamp = millis();
         }
         else if(millis() > lastBrakeDisconnectionTimeStamp + 3000)
@@ -165,7 +166,7 @@ void connectionMonitor()
         {
             throttleConnected = 0;
             minSpeed = 1200;
-            maxSpeed = 3000;
+            maxSpeed = 1600;
             lastThrottleDisconnectionTimeStamp = millis();
         }
         else if(millis() > lastThrottleDisconnectionTimeStamp + 3000)
@@ -191,7 +192,7 @@ void messageConstructor()
 
 	if(!brakeConnected || brake < 0x26)
 		brake = 0x26;
-	if(!throttleConnected || brake < 0x26)
+	if(!throttleConnected || speed < 0x26)
 		speed = 0x26;
 	if(!isConnected)
 		messageIndex = 4;
@@ -356,6 +357,7 @@ void backgroundProcess()
 	{
 	    if(!isPowered && command.power)
         {
+            delay(500);
             togglePower();
             messageTimer.start();
         }
@@ -375,16 +377,26 @@ void backgroundProcess()
             resetCommand = 0;
             System.reset();
         }
+        
+        if((command.head || stats.night) && !stats.lock)
+    			digitalWrite(HEADLIGHT, HIGH);
+        else
+    		digitalWrite(HEADLIGHT, LOW);
 	    
 	    if(isConnected)
 	    {
-    		if(!command.power && !stats.lock)
+    		if(!command.power && !stats.lock || stats.battery < 3)
     		{
     		    messageTimer.stop();
     		    digitalWrite(POWER, HIGH);
                 delay(2000);
                 digitalWrite(POWER, LOW);
                 isConnected = 0;
+                if(stats.battery < 3)
+                {
+                    Cellular.off();
+                    System.sleep(SLEEP_MODE_DEEP);
+                }
     		}
     		else if((command.night && !stats.night) || (!command.night && stats.night))
                 togglePower();
@@ -395,12 +407,6 @@ void backgroundProcess()
                 delay(25);
                 togglePower();
             }
-    
-            if((command.head || stats.night) && !stats.lock)
-    			digitalWrite(HEADLIGHT, HIGH);
-            else
-    			digitalWrite(HEADLIGHT, LOW);
-    
             lastBackgroundProcessTimeStamp = millis();
         }
 	}
