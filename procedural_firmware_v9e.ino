@@ -5,6 +5,30 @@
  * Date: September 27, 2019
  */
  
+/*************************
+ * TODO:
+ *    - MAJOR PROBLEM: There is a bug in this program which (randomly?) causes
+ *      the Electron to reset (a hard fault); I'm thinking this is somehow caused
+ *      by analogReads in the connectionMonitor (which is called by a timer).
+ *
+ *    - Problem with temporary fix: The scooter powers of every X minutes. The Electron
+ *      must restart the scooter, but when it restarts the values minBrake & minSpeed
+ *      will be set to a very low values due to the loss of 5V power from the restart.
+ *      The current fix is to delay by 3 seconds after the restart; this prevents the
+ *      reading values from analogRead when there is no 5V power.
+ * 
+ *    - Minor Problem: If the scooter's battery is very low it will automatically turn off, but
+ *      the electron will keep trying to turn it on; this will prevent the scooter
+ *      from charging when plugged in (until the scooter has enough power to stay on).
+ *      If the scooter's battery is very low, we should put the Electron to sleep.
+ *      To be decided: 
+ *          - how long will the Electron sleep, forever or similar to Fibonnaci sequence
+ *          - how does one tell the difference between battery level of 0 and a null battery level 
+ *          (also 0), should battery initally be set to -1?
+ * 
+ *      
+ * **********************/
+ 
 #include <NMEAGPS.h>
 #include "Serial5/Serial5.h"
 SYSTEM_THREAD(ENABLED);
@@ -22,34 +46,34 @@ int POWER = D7;
 //Internal Variables
 struct STATISTICS
 {
-    uint8_t alarm,
-        averageVelocity,
-        battery,
-        beep,
-        cruise,
-        eco,
-        ecoMode,
-        led,
-        lock,
-        night,
-        odometer,
-        tail,
-        temperature,
-        velocity;
+    int alarm
+      , averageVelocity
+      , battery
+      , beep
+      , cruise
+      , eco
+      , ecoMode
+      , led
+      , lock
+      , night
+      , odometer
+      , tail
+      , temperature
+      , velocity;
 } stats;
 struct COMMANDS
 {
-    uint8_t alarm = 1,
-        cruise = 1,
-        eco = 0,
-        ecoMode = 0,
-        head = 0,
-        led = 1,
-        lock = 0,
-        night = 0,
-        power = 1,
-        sound = 1,
-        tail = 1;
+    int alarm = 1
+      , cruise = 1
+      , eco = 0
+      , ecoMode = 0
+      , head = 0
+      , led = 1
+      , lock = 1
+      , night = 0
+      , power = 1
+      , sound = 1
+      , tail = 1;
 } command;
 
 unsigned char unlock[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x71, 0x1, 0x0, 0x66, 0xFF}
@@ -63,22 +87,27 @@ unsigned char unlock[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x71, 0x1, 0x0, 0x66, 0xFF
    , ecohigh[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x7B, 0x02, 0x0, 0x5B, 0xFF};
 
 int gpsValid = 0
+  , resetCommand = 0
+  , safeMode = 0
   , isPowered = 0
   , isConnected = 0
   , hasConnected = 0
   , brakeConnected = 0
-  , throttleConnected = 0;
+  , throttleConnected = 0
+  , minBrake = 1200
+  , minSpeed = 1200
+  , maxBrake = 1600
+  , maxSpeed = 1600;
 
 ApplicationWatchdog watchDog(60000, System.reset);
-Timer connectionTimer(5, connectionMonitor);
+Timer connectionTimer(10, connectionMonitor);
 Timer messageTimer(20, messageConstructor);
 Timer powerTimer(60000, powerCheck);
 
-retained int minBrake = 1200, minSpeed = 1200, maxBrake = 1600, maxSpeed = 1600;
-unsigned long lastReceivedMessageTimeStamp = 0;
+unsigned long lastReceivedMessageTimeStamp = 0
+            , lastParticlePublishTimeStamp = 0;
 retained String gpsLocation, gpsLink;
-int resetCommand = 0
-    , safeMode = 0;
+
     
 void setup()
 {
@@ -139,12 +168,12 @@ void connectionMonitor()
     brakeSum += analogRead(BRAKE);
     throttleSum += analogRead(THROTTLE);
     
-    if(index < 256)
+    if(index < 127)
         index++;
     else
     {
-        int brakeAvg = brakeSum >> 8;
-        int throttleAvg = throttleSum >> 8;
+        int brakeAvg = brakeSum >> 7;
+        int throttleAvg = throttleSum >> 7;
         
         if(brakeAvg < 15)
         {
@@ -196,6 +225,29 @@ void messageConstructor()
 		speed = 0x26;
 	if(!isConnected)
 		messageIndex = 4;
+
+	Serial.print("minBrake: ");
+	Serial.print(minBrake);
+	Serial.print(" maxBrake: ");
+	Serial.print(maxBrake);
+    Serial.print(" Current Brake: ");
+	Serial.print(analogRead(BRAKE));
+	Serial.print(" Brake Read: ");
+	Serial.print(brake, HEX);
+	Serial.print(" Connected: ");
+	Serial.println(brakeConnected);
+	
+    Serial.print(" minSpeed: ");
+	Serial.print(minSpeed);
+	Serial.print(" maxSpeed: ");
+	Serial.print(maxSpeed);
+	Serial.print(" Current Speed: ");
+	Serial.print(analogRead(THROTTLE));
+	Serial.print(" Speed Read: ");
+	Serial.print(speed, HEX);
+	Serial.print(" Connected: ");
+	Serial.println(throttleConnected);
+	Serial.println();
 
 	switch(messageIndex++){
         case 0:
@@ -340,7 +392,14 @@ void processMessage(unsigned char * message, int size)
                     stats.odometer = (message[18] + (message[19] * 256) + (message[20] * 256 * 256)) / 1000 / 1.60934;
                     stats.temperature = ((message[26] + (message[27] * 256)) / 10 * 9 / 5) + 32;
                     if(stats.alarm)
+                    {
 						tone(BUZZER, 20, 400);
+						if(millis() > lastParticlePublishTimeStamp + 2000)
+						{
+					        Particle.publish("Alarm", gpsLink);
+					        lastParticlePublishTimeStamp = millis();
+						}
+                    }
                     break;
             }
 			processChanges();
@@ -357,10 +416,15 @@ void backgroundProcess()
 	{
 	    if(!isPowered && command.power)
         {
-            delay(500);
+            delay(3000);
             togglePower();
             messageTimer.start();
         }
+        else if((command.head || stats.night) && !stats.lock)
+    			digitalWrite(HEADLIGHT, HIGH);
+        else
+    		digitalWrite(HEADLIGHT, LOW);
+        
         
         if(safeMode)
         {
@@ -377,26 +441,16 @@ void backgroundProcess()
             resetCommand = 0;
             System.reset();
         }
-        
-        if((command.head || stats.night) && !stats.lock)
-    			digitalWrite(HEADLIGHT, HIGH);
-        else
-    		digitalWrite(HEADLIGHT, LOW);
 	    
 	    if(isConnected)
 	    {
-    		if(!command.power && !stats.lock || stats.battery < 3)
+    		if(!command.power && !stats.lock)
     		{
     		    messageTimer.stop();
     		    digitalWrite(POWER, HIGH);
                 delay(2000);
                 digitalWrite(POWER, LOW);
                 isConnected = 0;
-                if(stats.battery < 3)
-                {
-                    Cellular.off();
-                    System.sleep(SLEEP_MODE_DEEP);
-                }
     		}
     		else if((command.night && !stats.night) || (!command.night && stats.night))
                 togglePower();
@@ -637,6 +691,11 @@ int cloudCommand(String userInput)
     {
         if(!gpsLocation.equals("")) Particle.publish("gpsTrace", gpsLocation);
         confirmation = 25;
+    }
+    else if(userInput.equals("shutdown"))
+    {
+        Cellular.off();
+        System.sleep(SLEEP_MODE_DEEP);
     }
     
     return confirmation;
