@@ -7,24 +7,10 @@
  
 /*************************
  * TODO:
- *    - MAJOR PROBLEM: There is a bug in this program which (randomly?) causes
- *      the Electron to reset (a hard fault); I'm thinking this is somehow caused
- *      by analogReads in the connectionMonitor (which is called by a timer).
- *
- *    - Problem with temporary fix: The scooter powers of every X minutes. The Electron
- *      must restart the scooter, but when it restarts the values minBrake & minSpeed
- *      will be set to a very low values due to the loss of 5V power from the restart.
- *      The current fix is to delay by 3 seconds after the restart; this prevents the
- *      reading values from analogRead when there is no 5V power.
- * 
  *    - Minor Problem: If the scooter's battery is very low it will automatically turn off, but
  *      the electron will keep trying to turn it on; this will prevent the scooter
  *      from charging when plugged in (until the scooter has enough power to stay on).
  *      If the scooter's battery is very low, we should put the Electron to sleep.
- *      To be decided: 
- *          - how long will the Electron sleep, forever or similar to Fibonnaci sequence
- *          - how does one tell the difference between battery level of 0 and a null battery level 
- *          (also 0), should battery initally be set to -1?
  * 
  *      
  * **********************/
@@ -105,7 +91,8 @@ Timer messageTimer(20, messageConstructor);
 Timer powerTimer(60000, powerCheck);
 
 unsigned long lastReceivedMessageTimeStamp = 0
-            , lastParticlePublishTimeStamp = 0;
+            , lastParticlePublishTimeStamp = 0
+            , lastScooterResetTimeStamp = 0;
 retained String gpsLocation, gpsLink;
 
     
@@ -160,10 +147,26 @@ void connectionMonitor()
     else
         isConnected = 0;
 
-    if(!(pmic.getSystemStatus() & 0x04) == 0) 
+    if(!(pmic.getSystemStatus() & 0x04) == 0)
+    {
         isPowered = 1;
+        powerTimer.stop();
+    }
     else
+    {
         isPowered = 0;
+        if(!command.power && !powerTimer.isActive())
+            powerTimer.start();
+    }
+        
+    if(!isPowered || millis() < lastScooterResetTimeStamp + 1000)
+    {
+        brakeSum = 0;
+        throttleSum = 0;
+        index = 0;
+        return;
+    }
+        
     
     brakeSum += analogRead(BRAKE);
     throttleSum += analogRead(THROTTLE);
@@ -216,8 +219,8 @@ void connectionMonitor()
 void messageConstructor()
 {
     static int messageIndex = 0;
-	char brake = map(analogRead(BRAKE), minBrake, maxBrake, 0x26, 0xC2);
-	char speed = map(analogRead(THROTTLE), minSpeed, maxSpeed, 0x26, 0xC2);
+	char brake = map(analogRead(BRAKE), minBrake, maxBrake, 0x26, 0xD2);
+	char speed = map(analogRead(THROTTLE), minSpeed, maxSpeed, 0x26, 0xD2);
 
 	if(!brakeConnected || brake < 0x26)
 		brake = 0x26;
@@ -225,29 +228,6 @@ void messageConstructor()
 		speed = 0x26;
 	if(!isConnected)
 		messageIndex = 4;
-
-	Serial.print("minBrake: ");
-	Serial.print(minBrake);
-	Serial.print(" maxBrake: ");
-	Serial.print(maxBrake);
-    Serial.print(" Current Brake: ");
-	Serial.print(analogRead(BRAKE));
-	Serial.print(" Brake Read: ");
-	Serial.print(brake, HEX);
-	Serial.print(" Connected: ");
-	Serial.println(brakeConnected);
-	
-    Serial.print(" minSpeed: ");
-	Serial.print(minSpeed);
-	Serial.print(" maxSpeed: ");
-	Serial.print(maxSpeed);
-	Serial.print(" Current Speed: ");
-	Serial.print(analogRead(THROTTLE));
-	Serial.print(" Speed Read: ");
-	Serial.print(speed, HEX);
-	Serial.print(" Connected: ");
-	Serial.println(throttleConnected);
-	Serial.println();
 
 	switch(messageIndex++){
         case 0:
@@ -406,66 +386,6 @@ void processMessage(unsigned char * message, int size)
     }
 }
 
-void backgroundProcess()
-{
-    static long lastBackgroundProcessTimeStamp = 0;
-	
-	updateLED();
-	
-	if(millis() > 1000 + lastBackgroundProcessTimeStamp)
-	{
-	    if(!isPowered && command.power)
-        {
-            delay(3000);
-            togglePower();
-            messageTimer.start();
-        }
-        else if((command.head || stats.night) && !stats.lock)
-    			digitalWrite(HEADLIGHT, HIGH);
-        else
-    		digitalWrite(HEADLIGHT, LOW);
-        
-        
-        if(safeMode)
-        {
-            Particle.process();
-            delay(100);
-            safeMode = 0;
-            System.enterSafeMode();
-        }
-        
-        if(resetCommand)
-        {
-            Particle.process();
-            delay(100);
-            resetCommand = 0;
-            System.reset();
-        }
-	    
-	    if(isConnected)
-	    {
-    		if(!command.power && !stats.lock)
-    		{
-    		    messageTimer.stop();
-    		    digitalWrite(POWER, HIGH);
-                delay(2000);
-                digitalWrite(POWER, LOW);
-                isConnected = 0;
-    		}
-    		else if((command.night && !stats.night) || (!command.night && stats.night))
-                togglePower();
-    		else if(((stats.eco == 0x00 || stats.eco == 0x01) && command.eco) 
-    			 || ((stats.eco == 0x02 || stats.eco == 0x03) && !command.eco))
-    		{
-                togglePower();
-                delay(25);
-                togglePower();
-            }
-            lastBackgroundProcessTimeStamp = millis();
-        }
-	}
-}
-
 void processChanges()
 {
 	if(!command.lock && stats.lock)
@@ -500,6 +420,67 @@ void processChanges()
 	}
 }
 
+void backgroundProcess()
+{
+    static long lastBackgroundProcessTimeStamp = 0;
+	
+	updateLED();
+	
+	if((command.head || stats.night) && millis() > lastScooterResetTimeStamp + 1000)
+    	digitalWrite(HEADLIGHT, HIGH);
+    else
+    	digitalWrite(HEADLIGHT, LOW);
+	
+	if(millis() > 1000 + lastBackgroundProcessTimeStamp)
+	{
+	    if(!isPowered && command.power)
+        { //Power On Scooter
+            togglePower();
+            messageTimer.start();
+            lastScooterResetTimeStamp = millis();
+        }
+        
+        if(safeMode)
+        { //Particle Enter Safe Mode
+            Particle.process();
+            delay(100);
+            safeMode = 0;
+            System.enterSafeMode();
+        }
+        
+        if(resetCommand)
+        { //Reset Particle Electron
+            Particle.process();
+            delay(100);
+            resetCommand = 0;
+            System.reset();
+        }
+	    
+	    if(isConnected)
+	    {
+    		if(!command.power && isPowered && !stats.lock)
+    		{ //Power off Scooter
+    		    messageTimer.stop();
+    		    powerTimer.start();
+    		    digitalWrite(POWER, HIGH);
+                delay(2000);
+                digitalWrite(POWER, LOW);
+                isConnected = 0;
+    		}
+    		else if((command.night && !stats.night) || (!command.night && stats.night))
+                togglePower();
+    		else if(((stats.eco == 0x00 || stats.eco == 0x01) && command.eco) 
+    			 || ((stats.eco == 0x02 || stats.eco == 0x03) && !command.eco))
+    		{
+                togglePower();
+                delay(25);
+                togglePower();
+            }
+            lastBackgroundProcessTimeStamp = millis();
+        }
+	}
+}
+
 void updateLED()
 {
 	digitalWrite(RLED, LOW);
@@ -528,7 +509,7 @@ void powerCheck()
 {
     static FuelGauge fuel;
     
-    if(fuel.getSoC() < 50)
+    if(fuel.getSoC() < 30)
     {
         command.power = 1;
     }
