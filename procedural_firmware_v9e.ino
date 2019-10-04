@@ -11,8 +11,6 @@
  *      the electron will keep trying to turn it on; this will prevent the scooter
  *      from charging when plugged in (until the scooter has enough power to stay on).
  *      If the scooter's battery is very low, we should put the Electron to sleep.
- * 
- *      
  * **********************/
  
 #include <NMEAGPS.h>
@@ -75,6 +73,7 @@ unsigned char unlock[] = {0x55, 0xAA, 0x4, 0x20, 0x3, 0x71, 0x1, 0x0, 0x66, 0xFF
 int gpsValid = 0
   , resetCommand = 0
   , safeMode = 0
+  , shutdownCommand = 0
   , isPowered = 0
   , isConnected = 0
   , hasConnected = 0
@@ -84,17 +83,18 @@ int gpsValid = 0
   , minSpeed = 1200
   , maxBrake = 1600
   , maxSpeed = 1600;
+  
+retained NMEAGPS gps; //Keep these values on Static RAM
+retained String gpsLocation, gpsLink;
 
+//Important Running Processes
 ApplicationWatchdog watchDog(60000, System.reset);
-Timer connectionTimer(10, connectionMonitor);
+Timer inputTimer(10, inputMonitor);
 Timer messageTimer(20, messageConstructor);
-Timer powerTimer(60000, powerCheck);
 
 unsigned long lastReceivedMessageTimeStamp = 0
             , lastParticlePublishTimeStamp = 0
             , lastScooterResetTimeStamp = 0;
-retained String gpsLocation, gpsLink;
-
     
 void setup()
 {
@@ -119,55 +119,60 @@ void setup()
     pinMode(POWER, OUTPUT);
 
     Particle.connect();
-    connectionTimer.start();
+    inputTimer.start();
     messageTimer.start();
 }
 
 void loop()
 {
+    //Process GPS Messages
+    while(gps.available(Serial5))
+        updateGPS();
+
+    //Update isConnected/isPowered
+    updateConnections();
+
+    backgroundProcess();
+
+    //Process Scooter Messages
     while(Serial1.available())
         readMessage(Serial1.read());
-    
-    updateGPS();
-    
-    backgroundProcess();
-    
+
     watchDog.checkin();
 }
 
-void connectionMonitor()
+void updateConnections()
 {
     static PMIC pmic;
-    static int brakeSum = 0, throttleSum = 0, index = 0;
-    static long lastBrakeDisconnectionTimeStamp = 0
-        , lastThrottleDisconnectionTimeStamp = 0;
     
     if(millis() < lastReceivedMessageTimeStamp + 3000)
         isConnected = 1;
     else
         isConnected = 0;
-
+    
     if(!(pmic.getSystemStatus() & 0x04) == 0)
-    {
         isPowered = 1;
-        powerTimer.stop();
-    }
     else
     {
         isPowered = 0;
-        if(!command.power && !powerTimer.isActive())
-            powerTimer.start();
+        isConnected = 0;
     }
-        
-    if(!isPowered || millis() < lastScooterResetTimeStamp + 1000)
-    {
+}
+
+void inputMonitor()
+{
+    static int brakeSum = 0, throttleSum = 0, index = 0;
+    static long lastBrakeDisconnectionTimeStamp = 0
+              , lastThrottleDisconnectionTimeStamp = 0;
+
+    if(!isPowered || millis() < lastScooterResetTimeStamp + 300)
+    { //Recent Loss of Power to 5V Sensor (incorrect averages)
         brakeSum = 0;
         throttleSum = 0;
         index = 0;
         return;
     }
-        
-    
+
     brakeSum += analogRead(BRAKE);
     throttleSum += analogRead(THROTTLE);
     
@@ -304,7 +309,7 @@ void readMessage(unsigned char data)
 				readIndex = 0;
 			break;
 		case 2:
-			message[0] = data;
+			message[0] = data; //Length of Message
 			cksm = data;
 			dataIndex = 1;
 			readIndex++;
@@ -316,16 +321,16 @@ void readMessage(unsigned char data)
 			    cksm += data;
 			
 			if(dataIndex < message[0] + 3)
-			{
+			{ //Don't break on last byte.
 			    dataIndex++;
 			    break;
 			}
 
 		    cksm ^= 0xFFFF;
-	    
+
 		    if(message[dataIndex - 1] == (cksm & 0xFF)
 		    && message[dataIndex] == (cksm & 0xFF00) >> 8)
-		    {
+		    { //Compare Checksum
 		        processMessage(message, dataIndex);
 		        hasConnected = 1;
 		        lastReceivedMessageTimeStamp = millis();
@@ -414,7 +419,7 @@ void processChanges()
 	}
 	
 	if(stats.beep && !stats.alarm)
-	{
+	{ //tone() automatically called when alarm on.
 		tone(BUZZER, 20, stats.beep == 2 ? 250 : 100);
 		stats.beep = 1;
 	}
@@ -426,13 +431,13 @@ void backgroundProcess()
 	
 	updateLED();
 	
-	if((command.head || stats.night) && millis() > lastScooterResetTimeStamp + 1000)
+	if(millis() > lastScooterResetTimeStamp + 1000 && command.head || stats.night)
     	digitalWrite(HEADLIGHT, HIGH);
     else
     	digitalWrite(HEADLIGHT, LOW);
 	
 	if(millis() > 1000 + lastBackgroundProcessTimeStamp)
-	{
+	{ //Enter this loop every second.
 	    if(!isPowered && command.power)
         { //Power On Scooter
             togglePower();
@@ -441,7 +446,7 @@ void backgroundProcess()
         }
         
         if(safeMode)
-        { //Particle Enter Safe Mode
+        { //Enter Safe Mode (Electron)
             Particle.process();
             delay(100);
             safeMode = 0;
@@ -455,29 +460,36 @@ void backgroundProcess()
             resetCommand = 0;
             System.reset();
         }
+        
+        if(shutdownCommand)
+	    { //Shutdown Particle Electron
+	        Particle.process();
+	        delay(100);
+	        shutdownCommand = 0;
+	        Cellular.off();
+            System.sleep(SLEEP_MODE_DEEP);
+	    }
 	    
 	    if(isConnected)
 	    {
     		if(!command.power && isPowered && !stats.lock)
     		{ //Power off Scooter
     		    messageTimer.stop();
-    		    powerTimer.start();
     		    digitalWrite(POWER, HIGH);
                 delay(2000);
                 digitalWrite(POWER, LOW);
-                isConnected = 0;
     		}
     		else if((command.night && !stats.night) || (!command.night && stats.night))
-                togglePower();
+                togglePower(); //Toggle Nightmode
     		else if(((stats.eco == 0x00 || stats.eco == 0x01) && command.eco) 
     			 || ((stats.eco == 0x02 || stats.eco == 0x03) && !command.eco))
-    		{
+    		{ //Toggle EcoMode (Enable/Disable only).
                 togglePower();
                 delay(25);
                 togglePower();
             }
-            lastBackgroundProcessTimeStamp = millis();
         }
+        lastBackgroundProcessTimeStamp = millis();
 	}
 }
 
@@ -500,40 +512,24 @@ void updateLED()
 
 void togglePower()
 {
+    Particle.publish("togglePower", "");
 	digitalWrite(POWER, HIGH);
     delay(100);
     digitalWrite(POWER, LOW);
 }
 
-void powerCheck()
-{
-    static FuelGauge fuel;
-    
-    if(fuel.getSoC() < 30)
-    {
-        command.power = 1;
-    }
-    else
-    {
-        command.power = 0;
-    }
-}
-
 void updateGPS()
 {
-    static NMEAGPS gps;
-    while(gps.available(Serial5))
+    gps_fix fix = gps.read();
+    
+    if(fix.valid.location)
     {
-        gps_fix fix = gps.read();
-        if(fix.valid.location)
-        {
-            gpsValid = 1;
-            gpsLocation = String(fix.latitude(), 4) + "," + String(fix.longitude(), 4);
-            gpsLink = "https://maps.google.com/?q=" + gpsLocation;
-        }
-        else
-            gpsValid = 0;
+        gpsValid = 1;
+        gpsLocation = String(fix.latitude(), 4) + "," + String(fix.longitude(), 4);
+        gpsLink = "https://maps.google.com/?q=" + gpsLocation;
     }
+    else
+        gpsValid = 0;
 }
 
 int cloudCommand(String userInput)
@@ -606,77 +602,66 @@ int cloudCommand(String userInput)
         confirmation = 12;
     }
     else if(userInput.equals("poweroff"))
-    {
-        powerTimer.start();
+    { //Scooter must be unlocked to power off.
         command.lock = 0;
         command.power = 0;
         confirmation = 13;
     }
     else if(userInput.equals("poweron"))
     {
-        powerTimer.stop();
         command.power = 1;
         confirmation = 14;
-    }
-    else if(userInput.equals("reset"))
-    {
-        resetCommand = 1;
-        confirmation = 15;
     }
     else if(userInput.equals("headoff"))
     {
         command.head = 0;
-        confirmation = 16;
+        confirmation = 15;
     }
     else if(userInput.equals("headon"))
     {
         command.head = 1;
-        confirmation = 17;
+        confirmation = 16;
     }
     else if(userInput.equals("ledoff"))
     {
         command.led = 0;
-        confirmation = 18;
+        confirmation = 17;
     }
     else if(userInput.equals("ledon"))
     {
         command.led = 1;
-        confirmation = 19;
+        confirmation = 18;
     }
     else if(userInput.equals("alarmoff"))
     {
         command.alarm = 0;
-        confirmation = 20;
+        confirmation = 19;
     }
     else if(userInput.equals("alarmon"))
     {
         command.alarm = 1;
-        confirmation = 21;
+        confirmation = 20;
     }
     else if(userInput.equals("alarm"))
     {
         tone(BUZZER, 20, 5000);
-        confirmation = 22;
+        confirmation = 21;
     }
     else if(userInput.equals("safemode"))
     {
         Particle.disconnect();
         safeMode = 1;
+        confirmation = 22;
+    }
+    else if(userInput.equals("reset"))
+    {
+        resetCommand = 1;
         confirmation = 23;
-    }
-    else if(userInput.equals("gpsoff"))
-    {
-        confirmation = 24;
-    }
-    else if(userInput.equals("gpson"))
-    {
-        if(!gpsLocation.equals("")) Particle.publish("gpsTrace", gpsLocation);
-        confirmation = 25;
     }
     else if(userInput.equals("shutdown"))
     {
-        Cellular.off();
-        System.sleep(SLEEP_MODE_DEEP);
+        shutdownCommand = 1;
+        confirmation = 24;
     }
     
     return confirmation;
