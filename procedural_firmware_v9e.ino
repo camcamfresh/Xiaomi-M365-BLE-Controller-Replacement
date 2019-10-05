@@ -11,6 +11,8 @@
  *      the electron will keep trying to turn it on; this will prevent the scooter
  *      from charging when plugged in (until the scooter has enough power to stay on).
  *      If the scooter's battery is very low, we should put the Electron to sleep.
+ *    - Minor Problem: Particle will randomly restart after a few hours. Resets all of commands.
+ *      Assuming it is caused by resetCommand, since there is no indication of a hard fault.
  * **********************/
  
 #include <NMEAGPS.h>
